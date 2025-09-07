@@ -68,3 +68,29 @@ func GetRecentPlayRecordsByDays(ctx context.Context, days int) ([]*TrackPlayReco
 	}
 	return records, nil
 }
+
+// GetPlayCountsBySource 获取按来源统计的播放次数
+func GetPlayCountsBySource(ctx context.Context) (map[string]int64, error) {
+	var result []map[string]interface{}
+	err := GetDB().WithContext(ctx).Model(&TrackPlayRecord{}).
+		Select("source, COUNT(*) as count").
+		Group("source").
+		Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为map[string]int64
+	sourceCounts := make(map[string]int64)
+	for _, item := range result {
+		if source, ok := item["source"].(string); ok {
+			if count, ok := item["count"].(int64); ok {
+				sourceCounts[source] = count
+			} else if countFloat, ok := item["count"].(float64); ok {
+				sourceCounts[source] = int64(countFloat)
+			}
+		}
+	}
+
+	return sourceCounts, nil
+}

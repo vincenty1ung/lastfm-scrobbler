@@ -91,8 +91,8 @@
 
       /* 统计卡片 */
       .stats-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        display: flex;
+        flex-wrap: wrap;
         gap: 20px;
         margin-bottom: 30px;
       }
@@ -584,7 +584,7 @@
 
       <!-- 统计卡片 -->
       <div class="stats-container">
-        <div class="stat-card">
+        <div class="stat-card" style="flex: 1; min-width: 200px;">
           <div class="stat-header">
             <div class="stat-title">总播放次数</div>
             <div class="stat-icon icon-1">▶️</div>
@@ -593,7 +593,7 @@
           <div class="stat-change positive">↑ 12% 本月</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="flex: 1; min-width: 200px;">
           <div class="stat-header">
             <div class="stat-title">曲目总数</div>
             <div class="stat-icon icon-2">🎵</div>
@@ -602,7 +602,7 @@
           <div class="stat-change positive">↑ 5% 本月</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="flex: 1; min-width: 200px;">
           <div class="stat-header">
             <div class="stat-title">艺术家数量</div>
             <div class="stat-icon icon-3">🎤</div>
@@ -611,13 +611,24 @@
           <div class="stat-change negative">↓ 2% 本月</div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="flex: 1; min-width: 200px;">
           <div class="stat-header">
             <div class="stat-title">专辑数量</div>
             <div class="stat-icon icon-4">💿</div>
           </div>
           <div class="stat-value" id="totalAlbums">0</div>
           <div class="stat-change positive">↑ 8% 本月</div>
+        </div>
+
+        <!-- 播放来源统计卡片 -->
+        <div class="stat-card" style="flex: 1; min-width: 200px;">
+          <div class="stat-header">
+            <div class="stat-title">播放来源分布</div>
+            <div class="stat-icon icon-1">📊</div>
+          </div>
+          <div class="chart-container" style="height: 150px; position: relative;">
+            <canvas id="sourceChart"></canvas>
+          </div>
         </div>
       </div>
 
@@ -848,6 +859,98 @@
             document.getElementById("totalTracks").textContent = "错误";
             document.getElementById("totalArtists").textContent = "错误";
             document.getElementById("totalAlbums").textContent = "错误";
+          });
+      }
+
+      // 全局变量存储播放来源图表实例
+      let sourceChartInstance = null;
+
+      // 初始化播放来源扇形图
+      function initSourceChart() {
+        const ctx = document.getElementById("sourceChart").getContext("2d");
+
+        // 销毁之前的图表实例（如果存在）
+        if (sourceChartInstance) {
+          sourceChartInstance.destroy();
+        }
+
+        // 从后端获取数据
+        fetch("/api/dashboard/play-counts-by-source")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("网络响应错误");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            // 处理数据
+            const sources = Object.keys(data);
+            const counts = sources.map(source => data[source]);
+
+            // 定义颜色
+            const backgroundColors = [
+              "rgba(231, 76, 60, 0.7)",  // Apple Music - 红色
+              "rgba(155, 89, 182, 0.7)", // Audirvana - 紫色
+              "rgba(127, 140, 141, 0.7)", // Roon - 灰色
+              "rgba(52, 152, 219, 0.7)",  // 其他 - 蓝色
+            ];
+
+            const borderColors = [
+              "rgba(231, 76, 60, 1)",
+              "rgba(155, 89, 182, 1)",
+              "rgba(127, 140, 141, 1)",
+              "rgba(52, 152, 219, 1)",
+            ];
+
+            // 创建扇形图并保存实例
+            sourceChartInstance = new Chart(ctx, {
+              type: "doughnut",
+              data: {
+                labels: sources,
+                datasets: [
+                  {
+                    data: counts,
+                    backgroundColor: backgroundColors.slice(0, sources.length),
+                    borderColor: borderColors.slice(0, sources.length),
+                    borderWidth: 1,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "right",
+                    labels: {
+                      boxWidth: 12,
+                      padding: 8,
+                      font: {
+                        size: 12
+                      }
+                    }
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function(context) {
+                        const label = context.label || "";
+                        const value = context.raw || 0;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = Math.round((value / total) * 100);
+                        return `${label}: ${value} (${percentage}%)`;
+                      }
+                    }
+                  }
+                },
+                cutout: "60%",
+              },
+            });
+          })
+          .catch((error) => {
+            console.error("获取播放来源数据失败:", error);
+            // 显示错误信息
+            const chartContainer = document.getElementById("sourceChart").parentElement;
+            chartContainer.innerHTML = '<div class="error">加载失败: ' + error.message + "</div>";
           });
       }
 
@@ -1366,6 +1469,7 @@
       document.addEventListener("DOMContentLoaded", function () {
         // 初始化各个组件
         initStats();
+        initSourceChart(); // 初始化播放来源扇形图
         initTrendChart(7); // 默认加载7天数据
         initArtistChart("plays"); // 默认按播放次数排序
         initRanking("all"); // 默认总排行
@@ -1379,6 +1483,7 @@
 
         // 设置定时器，每5秒刷新一次各个组件
         dashboardUpdater.addTimer(createAutoUpdater(initStats, 5000)); // 每5秒更新统计卡片
+        dashboardUpdater.addTimer(createAutoUpdater(initSourceChart, 60000)); // 每60秒更新播放来源扇形图
         dashboardUpdater.addTimer(
           createAutoUpdater(
             () =>

@@ -512,6 +512,21 @@ func setupRouter(name string) *gin.Engine {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		},
 	)
+
+	// 获取按来源统计的播放次数
+	r.GET("/api/dashboard/play-counts-by-source", func(c *gin.Context) {
+		ctx := c.Request.Context()
+
+		sourceCounts, err := trackService.GetPlayCountsBySource(ctx)
+		if err != nil {
+			log.Error(ctx, "Failed to get play counts by source", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get play counts by source"})
+			return
+		}
+
+		c.JSON(http.StatusOK, sourceCounts)
+	})
+
 	return r
 }
 

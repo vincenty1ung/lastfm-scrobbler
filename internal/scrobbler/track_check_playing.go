@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/applemusic"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/audirvana"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/exec"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/lastfm"
@@ -453,21 +454,20 @@ func AppleMusicCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 				if isLongAppleMusic {
 					log.Info(checkCtx, "60秒检查", zap.Uint32("共计上传歌曲标记", pushCount.Load()))
 				}
-				playing, err := exec.GetMRMediaNowPlaying()
-				if err != nil {
-					log.Warn(checkCtx, "AppleMusicTrackUpdateNowPlaying", zap.Error(err))
-					return
-				}
-				var appleMusicTrackInfo *exec.MRMediaNowPlaying
-				if playing.BundleIdentifier == exec.MRMediaNowPlayingAppMusic {
+				running := applemusic.IsRunning(checkCtx)
+				log.Debug(checkCtx, "AppleMusic 程序运行是否运行", zap.Bool("running", running))
+				var appleMusicTrackInfo *applemusic.TrackInfo
+				if running {
 					appleMusicTrackInfo = nil
-					if playing.IsPlaying {
+					state, _ := applemusic.GetState(checkCtx)
+					log.Debug(checkCtx, "AppleMusic 播放状态", zap.Any("state", state))
+					if state == common.PlayerStatePlaying {
 						if tmpCount > checkCount {
 							isLongAppleMusic = false
 							timer.Reset(time.Second * defaultSleep)
 						}
 						tmpCount = 0
-						appleMusicTrackInfo = playing
+						appleMusicTrackInfo = applemusic.GetNowPlayingTrackInfo(checkCtx)
 					} else {
 						if _, ok := currentPlayingCache.Load(cAppleMusic); ok {
 							currentPlayingCache.Delete(cAppleMusic)
@@ -494,7 +494,7 @@ func AppleMusicCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 					)
 					tmpTrack := appleMusicTrackInfo.Title //
 					currentTrack = tmpTrack
-					position := appleMusicTrackInfo.ElapsedTime
+					position := appleMusicTrackInfo.Position
 					duration := appleMusicTrackInfo.Duration
 
 					// 将播放信息写入本地缓存
@@ -529,7 +529,7 @@ func AppleMusicCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 							AlbumArtist: appleMusicTrackInfo.Artist,
 							Track:       appleMusicTrackInfo.Title,
 							Album:       appleMusicTrackInfo.Album,
-							Duration:    int64(appleMusicTrackInfo.Duration),
+							Duration:    appleMusicTrackInfo.Duration,
 							Timestamp:   now.UTC().Unix(),
 						}
 						// Save to database
@@ -576,7 +576,7 @@ func AppleMusicCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 							AlbumArtist: appleMusicTrackInfo.Artist,
 							Track:       appleMusicTrackInfo.Title,
 							Album:       appleMusicTrackInfo.Album,
-							Duration:    int64(appleMusicTrackInfo.Duration),
+							Duration:    appleMusicTrackInfo.Duration,
 						}
 						log.Info(
 							checkCtx, "AppleMusicCheckPlayingTrack NowPlayingTrackInfo",

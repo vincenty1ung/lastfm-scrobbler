@@ -25,6 +25,8 @@ type TrackService interface {
 	GetTopArtistsByTrackCount(ctx context.Context, limit int) ([]map[string]interface{}, error)
 	// GetTrackPlayCountsByPeriod 获取指定时间段内的曲目播放统计
 	GetTrackPlayCountsByPeriod(ctx context.Context, limit, offset int, period string) ([]*model.TrackPlayCount, error)
+	// GetPlayCountsBySource 获取按来源统计的播放次数
+	GetPlayCountsBySource(ctx context.Context) (map[string]int64, error)
 }
 
 // TrackServiceImpl 实现TrackService接口
@@ -100,4 +102,9 @@ func (s *TrackServiceImpl) GetTopArtistsByTrackCount(ctx context.Context, limit 
 // GetTrackPlayCountsByPeriod 获取指定时间段内的曲目播放统计
 func (s *TrackServiceImpl) GetTrackPlayCountsByPeriod(ctx context.Context, limit, offset int, period string) ([]*model.TrackPlayCount, error) {
 	return model.GetTrackPlayCountsByPeriod(ctx, limit, offset, period)
+}
+
+// GetPlayCountsBySource 获取按来源统计的播放次数
+func (s *TrackServiceImpl) GetPlayCountsBySource(ctx context.Context) (map[string]int64, error) {
+	return model.GetPlayCountsBySource(ctx)
 }
