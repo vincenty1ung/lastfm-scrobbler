@@ -1,5 +1,9 @@
 # 内存索引
 
+## 2025-09-07
+- **特性摘要**: 实现Apple Music播放跟踪支持，包括播放状态检查、记录保存和Last.fm同步
+- **链接**: [Apple Music支持功能特性清单](memory/2025-09-07/apple_music_support_feature_manifest.md)
+
 ## 2025-09-06
 - **特性摘要**: 实现WebSocket实时播放信息推送功能，包括后端WebSocket服务和前端实时展示
 - **链接**: [WebSocket实时播放信息功能特性清单](memory/2025-09-06/websocket_realtime_playback_feature_manifest.md)

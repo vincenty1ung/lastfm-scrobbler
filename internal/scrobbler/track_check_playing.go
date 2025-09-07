@@ -21,23 +21,30 @@ import (
 )
 
 const (
+	cAudirvana  = "audirvana"
+	cRoon       = "roon"
+	cAppleMusic = "applemusic"
+
 	percentScrobble = 0.55
 	defaultSleep    = 3
 	longSleep       = 60 // 休眠间隔六十秒
 	checkCount      = 100
-	cAudirvana      = "audirvana"
-	cRoon           = "roon"
 )
 
 var (
-	newTrackService     = track.NewTrackService()
-	maped               = make(map[string]bool)
-	maped2              = make(map[string]bool)
+	newTrackService = track.NewTrackService()
+
+	mapedAudirvana  = make(map[string]bool)
+	mapedRoon       = make(map[string]bool)
+	mapedAppleMusic = make(map[string]bool)
+
+	isLongAudirvana  bool
+	isLongRoon       bool
+	isLongAppleMusic bool
+
 	pushCount           = atomic.Uint32{} // 多渠道上报
 	atomicPlaying       = atomic.Bool{}   // 并发播放状态
-	isLong              bool
-	isLong2             bool
-	currentPlayingCache = sync.Map{} // 本地缓存当前播放信息
+	currentPlayingCache = sync.Map{}      // 本地缓存当前播放信息
 )
 
 func Init(
@@ -79,30 +86,28 @@ func AudirvanaCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 
 				log.Debug(checkCtx, "AudirvanaCheckPlayingTrack Checking playing track..."+time.Now().String())
 
-				// End the span at the end of this cycle
-				// span.End()
 				tmpCount++
-				if tmpCount > checkCount && !isLong { // 检查100次依旧没有播放检查轮训放大到60秒
+				if tmpCount > checkCount && !isLongAudirvana { // 检查100次依旧没有播放检查轮训放大到60秒
 					timer.Reset(time.Second * longSleep)
-					isLong = true
+					isLongAudirvana = true
 					log.Info(
-						checkCtx, "检查100次依旧没有播放检查轮训放大到60秒",
+						checkCtx, "Audirvana 检查100次依旧没有播放检查轮训放大到60秒",
 						zap.Uint32("共计上传歌曲标记", pushCount.Load()),
 					)
 				}
-				if isLong {
+				if isLongAudirvana {
 					log.Info(checkCtx, "60秒检查", zap.Uint32("共计上传歌曲标记", pushCount.Load()))
 				}
 				running := audirvana.IsRunning(checkCtx)
-				log.Debug(checkCtx, "程序运行是否运行", zap.Bool("running", running))
+				log.Debug(checkCtx, "Audirvana 程序运行是否运行", zap.Bool("running", running))
 				var audirvanaTrackInfo *audirvana.TrackInfo
 				if running {
 					audirvanaTrackInfo = nil
 					state, _ := audirvana.GetState(checkCtx)
-					log.Debug(checkCtx, "audirvana 播放状态", zap.Any("state", state))
+					log.Debug(checkCtx, "Audirvana 播放状态", zap.Any("state", state))
 					if state == common.PlayerStatePlaying {
 						if tmpCount > checkCount {
-							isLong = false
+							isLongAudirvana = false
 							timer.Reset(time.Second * defaultSleep)
 						}
 						tmpCount = 0
@@ -150,7 +155,7 @@ func AudirvanaCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 						checkCtx,
 						wti,
 					)
-					if position/float64(duration) > percentScrobble && !maped[currentTrack] {
+					if position/float64(duration) > percentScrobble && !mapedAudirvana[currentTrack] {
 						// 标记听歌完成
 						pushTrackScrobbleReq := &lastfm.PushTrackScrobbleReq{
 							Artist:      audirvanaTrackInfo.Artist,
@@ -173,11 +178,6 @@ func AudirvanaCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 								pushTrackScrobbleReq.AlbumArtist = albumartist
 							}
 						}
-						_, err := lastfm.PushTrackScrobble(checkCtx, pushTrackScrobbleReq)
-						if err != nil {
-							log.Warn(checkCtx, "TrackUpdateNowPlaying", zap.Error(err))
-							return
-						}
 						// Save to database
 						record := &model.TrackPlayRecord{
 							Artist:        pushTrackScrobbleReq.Artist,
@@ -193,24 +193,27 @@ func AudirvanaCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 						}
 
 						if err := newTrackService.InsertTrackPlayRecord(ctx, record); err != nil {
-							log.Warn(checkCtx, "Failed to insert track play record", zap.Error(err))
+							log.Warn(checkCtx, "Audirvana Failed to insert track play record", zap.Error(err))
 						}
 
 						// Update track play count
 						if err := newTrackService.IncrementTrackPlayCount(
 							checkCtx, record.Artist, record.Album, record.Track,
 						); err != nil {
-							log.Warn(checkCtx, "Failed to increment track play count", zap.Error(err))
+							log.Warn(checkCtx, "Audirvana Failed to increment track play count", zap.Error(err))
 						}
-
-						maped[currentTrack] = true
+						_, err := lastfm.PushTrackScrobble(checkCtx, pushTrackScrobbleReq)
+						if err != nil {
+							log.Warn(checkCtx, "AudirvanaTrackUpdateNowPlaying err", zap.Error(err))
+						}
+						mapedAudirvana[currentTrack] = true
 						pushCount.Add(1)
-						log.Info(checkCtx, "标记听歌完成", zap.String("track", pushTrackScrobbleReq.Track))
+						log.Info(checkCtx, "Audirvana标记听歌完成", zap.String("track", pushTrackScrobbleReq.Track))
 					}
 					// 上传听歌ing
 					if currentTrack != previousTrack {
 						// 产生新歌曲
-						delete(maped, previousTrack)
+						delete(mapedAudirvana, previousTrack)
 						now = time.Now()
 						playingReq := lastfm.TrackUpdateNowPlayingReq{
 							Artist:      audirvanaTrackInfo.Artist,
@@ -233,12 +236,11 @@ func AudirvanaCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 							}
 						}
 						log.Info(
-							checkCtx, "NowPlayingTrackInfo", zap.Any("audirvanaTrackInfo", audirvanaTrackInfo),
+							checkCtx, "AudirvanaNowPlayingTrackInfo", zap.Any("audirvanaTrackInfo", audirvanaTrackInfo),
 						)
 						err := lastfm.TrackUpdateNowPlaying(checkCtx, &playingReq)
 						if err != nil {
-							log.Warn(checkCtx, "TrackUpdateNowPlaying", zap.Error(err))
-							return
+							log.Warn(checkCtx, "AudirvanaTrackUpdateNowPlaying err", zap.Error(err))
 						}
 					}
 					previousTrack = tmpTrack // 防止cue文件出现问题
@@ -271,28 +273,29 @@ func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 
 				log.Debug(checkCtx, "RoonCheckPlayingTrack Checking playing track..."+time.Now().String())
 				tmpCount++
-				if tmpCount > checkCount && !isLong2 { // 检查100次依旧没有播放检查轮训放大到60秒
+				if tmpCount > checkCount && !isLongRoon { // 检查100次依旧没有播放检查轮训放大到60秒
 					timer.Reset(time.Second * longSleep)
-					isLong2 = true
+					isLongRoon = true
 					log.Info(
-						checkCtx, "检查100次依旧没有播放检查轮训放大到60秒",
+						checkCtx, "Roon检查100次依旧没有播放检查轮训放大到60秒",
 						zap.Uint32("共计上传歌曲标记", pushCount.Load()),
 					)
 				}
-				if isLong2 {
-					log.Info(checkCtx, "60秒检查", zap.Uint32("共计上传歌曲标记", pushCount.Load()))
+				if isLongRoon {
+					log.Info(checkCtx, "Roon60秒检查", zap.Uint32("共计上传歌曲标记", pushCount.Load()))
 				}
 				playing, err := exec.GetMRMediaNowPlaying()
 				if err != nil {
-					log.Warn(checkCtx, "TrackUpdateNowPlaying", zap.Error(err))
+					log.Warn(checkCtx, "RoonTrackUpdateNowPlaying", zap.Error(err))
 					return
 				}
 				var roonTrackInfo *exec.MRMediaNowPlaying
-				if playing.BundleIdentifier == exec.MRMediaNowPlayingAppRoon {
+				switch playing.BundleIdentifier {
+				case exec.MRMediaNowPlayingAppRoon:
 					roonTrackInfo = nil
 					if playing.IsPlaying {
 						if tmpCount > checkCount {
-							isLong2 = false
+							isLongRoon = false
 							timer.Reset(time.Second * defaultSleep)
 						}
 						tmpCount = 0
@@ -300,8 +303,9 @@ func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 					} else {
 						if _, ok := currentPlayingCache.Load(cRoon); ok {
 							currentPlayingCache.Delete(cRoon)
-							_, aok := currentPlayingCache.Load(cAudirvana)
-							if !aok {
+							_, aok1 := currentPlayingCache.Load(cAudirvana)
+							_, aok2 := currentPlayingCache.Load(cAppleMusic)
+							if !aok1 && !aok2 {
 								websocket.BroadcastMessage(
 									checkCtx,
 									&websocket.WsTrackInfo{
@@ -341,7 +345,7 @@ func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 						checkCtx,
 						wti,
 					)
-					if position/float64(duration) > percentScrobble && !maped2[currentTrack] {
+					if position/float64(duration) > percentScrobble && !mapedRoon[currentTrack] {
 						// 标记听歌完成
 						pushTrackScrobbleReq := &lastfm.PushTrackScrobbleReq{
 							Artist:      roonTrackInfo.Artist,
@@ -350,12 +354,6 @@ func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 							Album:       roonTrackInfo.Album,
 							Duration:    int64(roonTrackInfo.Duration),
 							Timestamp:   now.UTC().Unix(),
-						}
-						// 说明在听歌存在有效数据的
-						_, err := lastfm.PushTrackScrobble(checkCtx, pushTrackScrobbleReq)
-						if err != nil {
-							log.Warn(checkCtx, "RoonCheckPlayingTrack TrackUpdateNowPlaying", zap.Error(err))
-							return
 						}
 						// Save to database
 						record := &model.TrackPlayRecord{
@@ -371,16 +369,20 @@ func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 							Source:        "Roon",
 						}
 						if err := newTrackService.InsertTrackPlayRecord(checkCtx, record); err != nil {
-							log.Warn(checkCtx, "Failed to insert track play record", zap.Error(err))
+							log.Warn(checkCtx, "Roon Failed to insert track play record", zap.Error(err))
 						}
 						// Update track play count
 						if err := newTrackService.IncrementTrackPlayCount(
 							checkCtx, record.Artist, record.Album, record.Track,
 						); err != nil {
-							log.Warn(checkCtx, "Failed to increment track play count", zap.Error(err))
+							log.Warn(checkCtx, "Roon Failed to increment track play count", zap.Error(err))
 						}
-
-						maped2[currentTrack] = true
+						// 说明在听歌存在有效数据的
+						_, err := lastfm.PushTrackScrobble(checkCtx, pushTrackScrobbleReq)
+						if err != nil {
+							log.Warn(checkCtx, "RoonCheckPlayingTrack TrackUpdateNowPlaying", zap.Error(err))
+						}
+						mapedRoon[currentTrack] = true
 						pushCount.Add(1)
 						log.Info(
 							checkCtx, "RoonCheckPlayingTrack 标记听歌完成",
@@ -390,7 +392,7 @@ func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 					// 上传听歌ing
 					if currentTrack != previousTrack {
 						// 产生新歌曲
-						delete(maped2, previousTrack)
+						delete(mapedRoon, previousTrack)
 						now = time.Now()
 						playingReq := lastfm.TrackUpdateNowPlayingReq{
 							Artist:      roonTrackInfo.Artist,
@@ -406,7 +408,6 @@ func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 						err := lastfm.TrackUpdateNowPlaying(checkCtx, &playingReq)
 						if err != nil {
 							log.Warn(ctx, "RoonCheckPlayingTrack TrackUpdateNowPlaying", zap.Error(err))
-							return
 						}
 					}
 					previousTrack = tmpTrack // 防止cue文件出现问题
@@ -415,6 +416,183 @@ func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
 			h(ctx)
 		case <-stop:
 			fmt.Println("RoonCheckPlayingTrack check playing track exit")
+			return
+		}
+	}
+}
+
+// AppleMusicCheckPlayingTrack 检查Apple Music播放状态并上报
+func AppleMusicCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
+	timer := time.NewTicker(time.Second * defaultSleep)
+	var (
+		now           time.Time
+		currentTrack  = ""
+		previousTrack = ""
+		tmpCount      = 0
+	)
+	for {
+		select {
+		case <-timer.C:
+			h := func(ctx context.Context) {
+				// Start a new span for this check cycle
+				checkCtx, span := telemetry.StartSpanForTracerName(
+					ctx, _TracerName, "appleMusicCheckPlayingTrack",
+				)
+				defer span.End()
+
+				log.Debug(checkCtx, "AppleMusicCheckPlayingTrack Checking playing track..."+time.Now().String())
+				tmpCount++
+				if tmpCount > checkCount && !isLongAppleMusic { // 检查100次依旧没有播放检查轮训放大到60秒
+					timer.Reset(time.Second * longSleep)
+					isLongAppleMusic = true
+					log.Info(
+						checkCtx, "AppleMusic检查100次依旧没有播放检查轮训放大到60秒",
+						zap.Uint32("共计上传歌曲标记", pushCount.Load()),
+					)
+				}
+				if isLongAppleMusic {
+					log.Info(checkCtx, "60秒检查", zap.Uint32("共计上传歌曲标记", pushCount.Load()))
+				}
+				playing, err := exec.GetMRMediaNowPlaying()
+				if err != nil {
+					log.Warn(checkCtx, "AppleMusicTrackUpdateNowPlaying", zap.Error(err))
+					return
+				}
+				var appleMusicTrackInfo *exec.MRMediaNowPlaying
+				if playing.BundleIdentifier == exec.MRMediaNowPlayingAppMusic {
+					appleMusicTrackInfo = nil
+					if playing.IsPlaying {
+						if tmpCount > checkCount {
+							isLongAppleMusic = false
+							timer.Reset(time.Second * defaultSleep)
+						}
+						tmpCount = 0
+						appleMusicTrackInfo = playing
+					} else {
+						if _, ok := currentPlayingCache.Load(cAppleMusic); ok {
+							currentPlayingCache.Delete(cAppleMusic)
+							_, aok1 := currentPlayingCache.Load(cAudirvana)
+							_, aok2 := currentPlayingCache.Load(cRoon)
+							if !aok1 && !aok2 {
+								websocket.BroadcastMessage(
+									checkCtx,
+									&websocket.WsTrackInfo{
+										Type:   "stop",
+										Source: cAppleMusic,
+									},
+								)
+								atomicPlaying.Store(false)
+							}
+						}
+					}
+				}
+
+				if appleMusicTrackInfo != nil {
+					log.Debug(
+						checkCtx, "AppleMusicCheckPlayingTrack 获取播放信息",
+						zap.Any("track", appleMusicTrackInfo),
+					)
+					tmpTrack := appleMusicTrackInfo.Title //
+					currentTrack = tmpTrack
+					position := appleMusicTrackInfo.ElapsedTime
+					duration := appleMusicTrackInfo.Duration
+
+					// 将播放信息写入本地缓存
+					wti := &websocket.WsTrackInfo{
+						Type:   "now_playing",
+						Source: cAppleMusic,
+						Data: struct {
+							Title  string `json:"title"`
+							Album  string `json:"album"`
+							Artist string `json:"artist"`
+						}{
+							appleMusicTrackInfo.Title,
+							appleMusicTrackInfo.Album,
+							appleMusicTrackInfo.Artist,
+						},
+					}
+					// 向WebSocket客户端广播播放信息
+					currentPlayingCache.Store(cAppleMusic, wti)
+					atomicPlaying.Store(true)
+					websocket.BroadcastMessage(
+						checkCtx,
+						wti,
+					)
+					if position/float64(duration) > percentScrobble && !mapedAppleMusic[currentTrack] {
+						log.Debug(
+							checkCtx, "AppleMusicCheckPlayingTrack 标记听歌完成开始中",
+							zap.Any("track", appleMusicTrackInfo),
+						)
+						// 标记听歌完成
+						pushTrackScrobbleReq := &lastfm.PushTrackScrobbleReq{
+							Artist:      appleMusicTrackInfo.Artist,
+							AlbumArtist: appleMusicTrackInfo.Artist,
+							Track:       appleMusicTrackInfo.Title,
+							Album:       appleMusicTrackInfo.Album,
+							Duration:    int64(appleMusicTrackInfo.Duration),
+							Timestamp:   now.UTC().Unix(),
+						}
+						// Save to database
+						record := &model.TrackPlayRecord{
+							Artist:        pushTrackScrobbleReq.Artist,
+							AlbumArtist:   pushTrackScrobbleReq.AlbumArtist,
+							Track:         pushTrackScrobbleReq.Track,
+							Album:         pushTrackScrobbleReq.Album,
+							Duration:      pushTrackScrobbleReq.Duration,
+							PlayTime:      time.Unix(pushTrackScrobbleReq.Timestamp, 0),
+							Scrobbled:     true,
+							MusicBrainzID: pushTrackScrobbleReq.MusicBrainzTrackID,
+							TrackNumber:   pushTrackScrobbleReq.TrackNumber,
+							Source:        "Apple Music",
+						}
+						if err := newTrackService.InsertTrackPlayRecord(checkCtx, record); err != nil {
+							log.Warn(checkCtx, "AppleMusic Failed to insert track play record", zap.Error(err))
+						}
+						// Update track play count
+						if err := newTrackService.IncrementTrackPlayCount(
+							checkCtx, record.Artist, record.Album, record.Track,
+						); err != nil {
+							log.Warn(checkCtx, "AppleMusic Failed to increment track play count", zap.Error(err))
+						}
+						// 说明在听歌存在有效数据的
+						_, err := lastfm.PushTrackScrobble(checkCtx, pushTrackScrobbleReq)
+						if err != nil {
+							log.Warn(checkCtx, "AppleMusicCheckPlayingTrack TrackUpdateNowPlaying err", zap.Error(err))
+						}
+						mapedAppleMusic[currentTrack] = true
+						pushCount.Add(1)
+						log.Info(
+							checkCtx, "AppleMusicCheckPlayingTrack 标记听歌完成",
+							zap.String("track", pushTrackScrobbleReq.Track),
+						)
+					}
+					// 上传听歌ing
+					if currentTrack != previousTrack {
+						// 产生新歌曲
+						delete(mapedAppleMusic, previousTrack)
+						now = time.Now()
+						playingReq := lastfm.TrackUpdateNowPlayingReq{
+							Artist:      appleMusicTrackInfo.Artist,
+							AlbumArtist: appleMusicTrackInfo.Artist,
+							Track:       appleMusicTrackInfo.Title,
+							Album:       appleMusicTrackInfo.Album,
+							Duration:    int64(appleMusicTrackInfo.Duration),
+						}
+						log.Info(
+							checkCtx, "AppleMusicCheckPlayingTrack NowPlayingTrackInfo",
+							zap.Any("appleMusicTrackInfo", appleMusicTrackInfo),
+						)
+						err := lastfm.TrackUpdateNowPlaying(checkCtx, &playingReq)
+						if err != nil {
+							log.Warn(ctx, "AppleMusicCheckPlayingTrack TrackUpdateNowPlaying err", zap.Error(err))
+						}
+					}
+					previousTrack = tmpTrack // 防止cue文件出现问题
+				}
+			}
+			h(ctx)
+		case <-stop:
+			fmt.Println("AppleMusicCheckPlayingTrack check playing track exit")
 			return
 		}
 	}

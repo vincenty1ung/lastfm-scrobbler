@@ -3,8 +3,10 @@ package model
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
+	"github.com/vincenty1ung/lastfm-scrobbler/common"
 	"gorm.io/gorm"
 )
 
@@ -24,6 +26,11 @@ func (TrackPlayCount) TableName() string {
 }
 
 func IncrementTrackPlayCount(ctx context.Context, artist, album, track string) error {
+	// 验证艺术家、专辑和曲目信息
+	if err := common.ValidateTrackInfo(ctx, artist, album, track); err != nil {
+		return err
+	}
+
 	// 使用乐观锁机制更新播放次数
 	for {
 		var record TrackPlayCount
@@ -139,4 +146,129 @@ func GetTracksByArtist(ctx context.Context, artist string) ([]*TrackPlayCount, e
 		return nil, err
 	}
 	return tracks, nil
+}
+
+// GetTotalPlayCount 获取总播放次数
+func GetTotalPlayCount(ctx context.Context) (int64, error) {
+	var total int64
+	err := GetDB().WithContext(ctx).Model(&TrackPlayCount{}).Select("SUM(play_count)").Scan(&total).Error
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+// GetArtistCounts 获取艺术家总数
+func GetArtistCounts(ctx context.Context) (int64, error) {
+	var count int64
+	err := GetDB().WithContext(ctx).Model(&TrackPlayCount{}).Distinct("artist").Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetAlbumCounts 获取专辑总数
+func GetAlbumCounts(ctx context.Context) (int64, error) {
+	var count int64
+	err := GetDB().WithContext(ctx).Model(&TrackPlayCount{}).Distinct("album").Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetTopArtistsByPlayCount 获取按播放次数统计的热门艺术家
+func GetTopArtistsByPlayCount(ctx context.Context, limit int) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+	err := GetDB().WithContext(ctx).Model(&TrackPlayCount{}).
+		Select("artist, SUM(play_count) as play_count").
+		Group("artist").
+		Order("SUM(play_count) DESC").
+		Limit(limit).
+		Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetTopArtistsByTrackCount 获取按曲目数统计的热门艺术家
+func GetTopArtistsByTrackCount(ctx context.Context, limit int) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+	err := GetDB().WithContext(ctx).Model(&TrackPlayCount{}).
+		Select("artist, COUNT(*) as track_count").
+		Group("artist").
+		Order("COUNT(*) DESC").
+		Limit(limit).
+		Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetTrackPlayCountsByPeriod 获取指定时间段内的曲目播放统计
+func GetTrackPlayCountsByPeriod(ctx context.Context, limit int, offset int, period string) ([]*TrackPlayCount, error) {
+	// 计算时间范围
+	var startTime time.Time
+	switch period {
+	case "week":
+		startTime = time.Now().AddDate(0, 0, -7)
+	case "month":
+		startTime = time.Now().AddDate(0, -1, 0)
+	default:
+		// 默认返回所有时间的数据
+		return GetTrackPlayCounts(ctx, limit, offset)
+	}
+
+	// 先获取指定时间范围内的播放记录
+	var playRecords []*TrackPlayRecord
+	err := GetDB().WithContext(ctx).Where(
+		"play_time >= ?", startTime,
+	).Order("").Find(&playRecords).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 统计每个曲目的播放次数
+	trackCountMap := make(map[string]*TrackPlayCount)
+	for _, record := range playRecords {
+		key := record.Artist + "|" + record.Album + "|" + record.Track
+		if trackCount, exists := trackCountMap[key]; exists {
+			trackCount.PlayCount++
+		} else {
+			trackCountMap[key] = &TrackPlayCount{
+				Artist:    record.Artist,
+				Album:     record.Album,
+				Track:     record.Track,
+				PlayCount: 1,
+			}
+		}
+	}
+
+	// 转换为切片并排序
+	var trackCounts []*TrackPlayCount
+	for _, trackCount := range trackCountMap {
+		trackCounts = append(trackCounts, trackCount)
+	}
+
+	// 按播放次数排序
+	sort.Slice(
+		trackCounts, func(i, j int) bool {
+			return trackCounts[i].PlayCount > trackCounts[j].PlayCount
+		},
+	)
+
+	// 应用分页
+	start := offset
+	end := offset + limit
+	if start >= len(trackCounts) {
+		return []*TrackPlayCount{}, nil
+	}
+	if end > len(trackCounts) {
+		end = len(trackCounts)
+	}
+
+	return trackCounts[start:end], nil
 }

@@ -57,7 +57,8 @@ func initTelemetry(serviceName string) error {
 
 	// Create a trace exporter
 	traceExporter, err := stdouttrace.New(
-		stdouttrace.WithPrettyPrint(),
+		// stdouttrace.WithPrettyPrint(),
+		stdouttrace.WithoutTimestamps(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create trace exporter: %w", err)

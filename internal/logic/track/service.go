@@ -3,15 +3,28 @@ package track
 import (
 	"context"
 
-	model2 "github.com/vincenty1ung/lastfm-scrobbler/internal/model"
+	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
 
 // TrackService 定义曲目相关服务接口
 type TrackService interface {
-	GetTrackPlayCounts(ctx context.Context, limit, offset int) ([]*model2.TrackPlayCount, error)
-	GetTrackPlayCount(ctx context.Context, artist, album, track string) (*model2.TrackPlayCount, error)
-	InsertTrackPlayRecord(ctx context.Context, record *model2.TrackPlayRecord) error
+	GetTrackPlayCounts(ctx context.Context, limit, offset int) ([]*model.TrackPlayCount, error)
+	GetTrackPlayCount(ctx context.Context, artist, album, track string) (*model.TrackPlayCount, error)
+	InsertTrackPlayRecord(ctx context.Context, record *model.TrackPlayRecord) error
 	IncrementTrackPlayCount(ctx context.Context, artist, album, track string) error
+	GetTotalPlayCount(ctx context.Context) (int64, error)
+	GetTrackCounts(ctx context.Context) (int64, error)
+	GetArtistCounts(ctx context.Context) (int64, error)
+	GetAlbumCounts(ctx context.Context) (int64, error)
+	GetRecentPlayRecords(ctx context.Context, limit int) ([]*model.TrackPlayRecord, error)
+	// GetRecentPlayRecordsByDays 获取指定天数内的播放记录
+	GetRecentPlayRecordsByDays(ctx context.Context, days int) ([]*model.TrackPlayRecord, error)
+	// GetTopArtistsByPlayCount 获取按播放次数统计的热门艺术家
+	GetTopArtistsByPlayCount(ctx context.Context, limit int) ([]map[string]interface{}, error)
+	// GetTopArtistsByTrackCount 获取按曲目数统计的热门艺术家
+	GetTopArtistsByTrackCount(ctx context.Context, limit int) ([]map[string]interface{}, error)
+	// GetTrackPlayCountsByPeriod 获取指定时间段内的曲目播放统计
+	GetTrackPlayCountsByPeriod(ctx context.Context, limit, offset int, period string) ([]*model.TrackPlayCount, error)
 }
 
 // TrackServiceImpl 实现TrackService接口
@@ -24,22 +37,67 @@ func NewTrackService() TrackService {
 
 // GetTrackPlayCounts 获取曲目播放统计列表
 func (s *TrackServiceImpl) GetTrackPlayCounts(ctx context.Context, limit, offset int) (
-	[]*model2.TrackPlayCount, error,
+	[]*model.TrackPlayCount, error,
 ) {
-	return model2.GetTrackPlayCounts(ctx, limit, offset)
+	return model.GetTrackPlayCounts(ctx, limit, offset)
 }
 
 // GetTrackPlayCount 获取特定曲目的播放统计
 func (s *TrackServiceImpl) GetTrackPlayCount(ctx context.Context, artist, album, track string) (
-	*model2.TrackPlayCount, error,
+	*model.TrackPlayCount, error,
 ) {
-	return model2.GetTrackPlayCount(ctx, artist, album, track)
+	return model.GetTrackPlayCount(ctx, artist, album, track)
 }
 
-func (s *TrackServiceImpl) InsertTrackPlayRecord(ctx context.Context, record *model2.TrackPlayRecord) error {
-	return model2.InsertTrackPlayRecord(ctx, record)
+func (s *TrackServiceImpl) InsertTrackPlayRecord(ctx context.Context, record *model.TrackPlayRecord) error {
+	return model.InsertTrackPlayRecord(ctx, record)
 }
 
 func (s *TrackServiceImpl) IncrementTrackPlayCount(ctx context.Context, artist, album, track string) error {
-	return model2.IncrementTrackPlayCount(ctx, artist, album, track)
+	return model.IncrementTrackPlayCount(ctx, artist, album, track)
+}
+
+// GetTotalPlayCount 获取总播放次数
+func (s *TrackServiceImpl) GetTotalPlayCount(ctx context.Context) (int64, error) {
+	return model.GetTotalPlayCount(ctx)
+}
+
+// GetTrackCounts 获取曲目总数
+func (s *TrackServiceImpl) GetTrackCounts(ctx context.Context) (int64, error) {
+	return model.GetTrackCounts(ctx)
+}
+
+// GetArtistCounts 获取艺术家总数
+func (s *TrackServiceImpl) GetArtistCounts(ctx context.Context) (int64, error) {
+	return model.GetArtistCounts(ctx)
+}
+
+// GetAlbumCounts 获取专辑总数
+func (s *TrackServiceImpl) GetAlbumCounts(ctx context.Context) (int64, error) {
+	return model.GetAlbumCounts(ctx)
+}
+
+// GetRecentPlayRecords 获取最近播放记录
+func (s *TrackServiceImpl) GetRecentPlayRecords(ctx context.Context, limit int) ([]*model.TrackPlayRecord, error) {
+	return model.GetRecentPlayRecords(ctx, limit)
+}
+
+// GetRecentPlayRecordsByDays 获取指定天数内的播放记录
+func (s *TrackServiceImpl) GetRecentPlayRecordsByDays(ctx context.Context, days int) ([]*model.TrackPlayRecord, error) {
+	return model.GetRecentPlayRecordsByDays(ctx, days)
+}
+
+// GetTopArtistsByPlayCount 获取按播放次数统计的热门艺术家
+func (s *TrackServiceImpl) GetTopArtistsByPlayCount(ctx context.Context, limit int) ([]map[string]interface{}, error) {
+	return model.GetTopArtistsByPlayCount(ctx, limit)
+}
+
+// GetTopArtistsByTrackCount 获取按曲目数统计的热门艺术家
+func (s *TrackServiceImpl) GetTopArtistsByTrackCount(ctx context.Context, limit int) ([]map[string]interface{}, error) {
+	return model.GetTopArtistsByTrackCount(ctx, limit)
+}
+
+// GetTrackPlayCountsByPeriod 获取指定时间段内的曲目播放统计
+func (s *TrackServiceImpl) GetTrackPlayCountsByPeriod(ctx context.Context, limit, offset int, period string) ([]*model.TrackPlayCount, error) {
+	return model.GetTrackPlayCountsByPeriod(ctx, limit, offset, period)
 }

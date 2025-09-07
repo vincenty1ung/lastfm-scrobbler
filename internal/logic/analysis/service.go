@@ -48,15 +48,15 @@ func (s *MusicAnalysisServiceImpl) GenerateMusicPreferenceReport(ctx context.Con
 		return nil, err
 	}
 
-	// 获取播放次数最多的曲目
-	topTracks, err := model.GetTrackPlayCounts(ctx, 10, 0)
+	// 获取播放次数最多的曲目 (30条数据)
+	topTracks, err := model.GetTrackPlayCounts(ctx, 30, 0)
 	if err != nil {
 		log.Error(ctx, "Failed to get top tracks", zap.Error(err))
 		return nil, err
 	}
 
-	// 获取最近播放的曲目
-	recentRecords, err := getRecentPlayRecords(ctx, 20)
+	// 获取最近播放的曲目 (30条数据)
+	recentRecords, err := getRecentPlayRecords(ctx, 30)
 	if err != nil {
 		log.Error(ctx, "Failed to get recent play records", zap.Error(err))
 		return nil, err

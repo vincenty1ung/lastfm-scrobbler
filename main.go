@@ -103,5 +103,6 @@ func scrobblerRun(c <-chan struct{}) error {
 	// 音乐检查
 	go scrobbler.AudirvanaCheckPlayingTrack(ctx, c)
 	go scrobbler.RoonCheckPlayingTrack(ctx, c)
+	go scrobbler.AppleMusicCheckPlayingTrack(ctx, c)
 	return nil
 }

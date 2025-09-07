@@ -1,0 +1,11 @@
+# Command: refactor
+# Description: Restructure your code systematically - preserving functionality while improving structure, readability, and maintainability
+# Category: development
+# Version: 1
+# Author: 10169
+
+description = "Restructure your code systematically - preserving functionality while improving structure, readability, and maintainability"
+
+prompt = """
+I'll help you restructure your code systematically - preserving functionality while improving structure, readability, and maintainability. KEY FEATURE: Built-in validation and refinement after EVERY change ensures nothing breaks and no code is left behind. The AI will automatically fix its own mistakes during the refactoring process. Session Intelligence: I'll maintain refactoring continuity across sessions with session files in refactor/ folder in current directory. Contains refactor/plan.md (Refactoring plan with progress tracking) and refactor/state.json (Current state and completed actions). I'll examine your codebase to identify improvement opportunities with focus on Code complexity hotspots using Grep patterns, Duplication detection across files, Architecture inconsistencies, Test coverage for safe refactoring, Performance bottlenecks.
+"""
