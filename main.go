@@ -77,10 +77,12 @@ func initServer() error {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	// Start HTTP server in a separate goroutine
+	// Start scrobblerRun goroutine
 	go api.StartHTTPServer(ctx, config.ConfigObj.Telemetry.Name)
 
+	// Start HTTP server in a separate goroutine
 	_ = scrobblerRun(c)
+
 	<-ctx.Done()
 	fmt.Println("system exiting")
 	close(c)
@@ -88,21 +90,18 @@ func initServer() error {
 }
 
 func scrobblerRun(c <-chan struct{}) error {
-	ctx := context.Background()
 	scrobbler.Init(
-		ctx,
+		context.Background(),
 		config.ConfigObj.Lastfm.ApiKey,
 		config.ConfigObj.Lastfm.SharedSecret,
 		config.ConfigObj.Lastfm.UserLoginToken,
 		*isMobile,
 		config.ConfigObj.Lastfm.UserUsername,
 		config.ConfigObj.Lastfm.UserPassword,
+		config.ConfigObj.Scrobblers,
+		c,
 	)
 
 	// musixmatch.InitMxmClient(config.ConfigObj.Musixmatch.ApiKey)
-	// 音乐检查
-	go scrobbler.AudirvanaCheckPlayingTrack(ctx, c)
-	go scrobbler.RoonCheckPlayingTrack(ctx, c)
-	go scrobbler.AppleMusicCheckPlayingTrack(ctx, c)
 	return nil
 }

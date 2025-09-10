@@ -7,18 +7,21 @@ lastfm:
   userUsername: ""
   userPassword: ""
 
+log:
+  path: ./.logs
+  level: info
+
 musixmatch:
   apiKey: ""
-
-log:
-  path: ".logs/go_lastfm-scrobbler.log"
-  level: "info"
 
 database:
   path: ".storage/tracks.db"
 
 http:
-  port: "8080"
+  port: "8081"
 
 telemetry:
   name: "lastfm-scrobbler"
+
+scrobblers:
+  - "Apple Music"

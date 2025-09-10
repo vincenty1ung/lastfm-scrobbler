@@ -33,7 +33,7 @@ func InsertTrackPlayRecord(ctx context.Context, record *TrackPlayRecord) error {
 }
 
 func UpdateScrobbledStatus(ctx context.Context, id uint, scrobbled bool) error {
-	return GetDB().WithContext(ctx).Where("id = ?", id).Update("scrobbled", scrobbled).Error
+	return GetDB().WithContext(ctx).Model(&TrackPlayRecord{}).Where("id = ?", id).Update("scrobbled", scrobbled).Error
 }
 
 func GetUnscrobbledRecords(ctx context.Context, limit int) ([]*TrackPlayRecord, error) {
@@ -66,6 +66,45 @@ func GetRecentPlayRecordsByDays(ctx context.Context, days int) ([]*TrackPlayReco
 	if err != nil {
 		return nil, err
 	}
+	return records, nil
+}
+
+// GetUnscrobbledRecordsWithPagination 分页获取未同步到Last.fm的播放记录
+func GetUnscrobbledRecordsWithPagination(ctx context.Context, limit, offset int) ([]*TrackPlayRecord, error) {
+	var trackPlayRecords []*TrackPlayRecord
+	err := GetDB().WithContext(ctx).Where(
+		"scrobbled = ?", false,
+	).Order("play_time ASC").Limit(limit).Offset(offset).Find(&trackPlayRecords).Error
+	if err != nil {
+		return nil, err
+	}
+	return trackPlayRecords, nil
+}
+
+// GetUnscrobbledRecordsCount 获取未同步到Last.fm的播放记录总数
+func GetUnscrobbledRecordsCount(ctx context.Context) (int64, error) {
+	var count int64
+	err := GetDB().WithContext(ctx).Model(&TrackPlayRecord{}).Where("scrobbled = ?", false).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// BatchUpdateScrobbledStatus 批量更新播放记录的同步状态
+func BatchUpdateScrobbledStatus(ctx context.Context, ids []uint, scrobbled bool) error {
+	return GetDB().WithContext(ctx).Model(&TrackPlayRecord{}).Where("id IN ?", ids).Update("scrobbled", scrobbled).Error
+}
+
+// GetUnscrobbledRecordsByIds 通过ID列表获取未同步的播放记录
+func GetUnscrobbledRecordsByIds(ctx context.Context, ids []uint) ([]*TrackPlayRecord, error) {
+	// 获取指定ID的未同步记录
+	var records []*TrackPlayRecord
+	err := GetDB().WithContext(ctx).Where("id IN ? AND scrobbled = ?", ids, false).Find(&records).Error
+	if err != nil {
+		return nil, err
+	}
+
 	return records, nil
 }
 

@@ -3,6 +3,7 @@ package track
 import (
 	"context"
 
+	"github.com/vincenty1ung/lastfm-scrobbler/core/lastfm"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
 
@@ -27,6 +28,16 @@ type TrackService interface {
 	GetTrackPlayCountsByPeriod(ctx context.Context, limit, offset int, period string) ([]*model.TrackPlayCount, error)
 	// GetPlayCountsBySource 获取按来源统计的播放次数
 	GetPlayCountsBySource(ctx context.Context) (map[string]int64, error)
+	// GetUnscrobbledRecordsWithPagination 分页获取未同步到Last.fm的播放记录
+	GetUnscrobbledRecordsWithPagination(ctx context.Context, limit, offset int) ([]*model.TrackPlayRecord, error)
+	// GetUnscrobbledRecordsCount 获取未同步到Last.fm的播放记录总数
+	GetUnscrobbledRecordsCount(ctx context.Context) (int64, error)
+	// SyncUnscrobbledRecords 同步未上报的数据到Last.fm并更新状态
+	SyncUnscrobbledRecords(ctx context.Context, limit int) ([]*model.TrackPlayRecord, error)
+	// SyncSelectedUnscrobbledRecords 同步选中的未同步记录到Last.fm
+	SyncSelectedUnscrobbledRecords(ctx context.Context, ids []uint) (
+		successCount int, failedRecords []*model.TrackPlayRecord, err error,
+	)
 }
 
 // TrackServiceImpl 实现TrackService接口
@@ -100,11 +111,79 @@ func (s *TrackServiceImpl) GetTopArtistsByTrackCount(ctx context.Context, limit 
 }
 
 // GetTrackPlayCountsByPeriod 获取指定时间段内的曲目播放统计
-func (s *TrackServiceImpl) GetTrackPlayCountsByPeriod(ctx context.Context, limit, offset int, period string) ([]*model.TrackPlayCount, error) {
+func (s *TrackServiceImpl) GetTrackPlayCountsByPeriod(
+	ctx context.Context, limit, offset int, period string,
+) ([]*model.TrackPlayCount, error) {
 	return model.GetTrackPlayCountsByPeriod(ctx, limit, offset, period)
 }
 
 // GetPlayCountsBySource 获取按来源统计的播放次数
 func (s *TrackServiceImpl) GetPlayCountsBySource(ctx context.Context) (map[string]int64, error) {
 	return model.GetPlayCountsBySource(ctx)
+}
+
+// GetUnscrobbledRecordsWithPagination 分页获取未同步到Last.fm的播放记录
+func (s *TrackServiceImpl) GetUnscrobbledRecordsWithPagination(
+	ctx context.Context, limit, offset int,
+) ([]*model.TrackPlayRecord, error) {
+	return model.GetUnscrobbledRecordsWithPagination(ctx, limit, offset)
+}
+
+// GetUnscrobbledRecordsCount 获取未同步到Last.fm的播放记录总数
+func (s *TrackServiceImpl) GetUnscrobbledRecordsCount(ctx context.Context) (int64, error) {
+	return model.GetUnscrobbledRecordsCount(ctx)
+}
+
+// SyncUnscrobbledRecords 同步未上报的数据到Last.fm并更新状态
+func (s *TrackServiceImpl) SyncUnscrobbledRecords(ctx context.Context, limit int) ([]*model.TrackPlayRecord, error) {
+	return nil, nil
+}
+
+// SyncSelectedUnscrobbledRecords 同步选中的未同步记录到Last.fm
+func (s *TrackServiceImpl) SyncSelectedUnscrobbledRecords(ctx context.Context, ids []uint) (
+	successCount int, failedRecords []*model.TrackPlayRecord, err error,
+) {
+	// 获取指定ID的未同步记录
+	records, err := model.GetUnscrobbledRecordsByIds(ctx, ids)
+	if err != nil {
+		return 0, nil, err
+	}
+	if len(records) == 0 {
+		return 0, nil, nil
+	}
+
+	var successIDs []uint
+
+	for _, record := range records {
+		// 调用Last.fm API上报数据
+		_, err := lastfm.PushTrackScrobble(
+			ctx, &lastfm.PushTrackScrobbleReq{
+				Artist:             record.Artist,
+				AlbumArtist:        record.AlbumArtist,
+				Track:              record.Track,
+				Album:              record.Album,
+				Duration:           record.Duration,
+				Timestamp:          record.PlayTime.Unix(),
+				MusicBrainzTrackID: record.MusicBrainzID,
+				TrackNumber:        record.TrackNumber,
+			},
+		)
+		if err != nil {
+			// 记录失败的记录
+			failedRecords = append(failedRecords, record)
+			continue
+		}
+
+		// 记录成功的ID
+		successIDs = append(successIDs, record.ID)
+	}
+
+	// 批量更新成功同步的记录状态
+	if len(successIDs) > 0 {
+		if err := model.BatchUpdateScrobbledStatus(ctx, successIDs, true); err != nil {
+			return 0, nil, err
+		}
+	}
+
+	return len(successIDs), failedRecords, nil
 }

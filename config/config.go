@@ -13,6 +13,7 @@ type Config struct {
 	Database   DatabaseConfig   `yaml:"database"`
 	HTTP       HTTPConfig       `yaml:"http"`
 	Telemetry  TelemetryConfig  `yaml:"telemetry"`
+	Scrobblers []string         `yaml:"scrobblers"`
 }
 
 type ScrobblerConfig struct {

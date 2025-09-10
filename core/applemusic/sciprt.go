@@ -83,7 +83,13 @@ set playingDuration to duration of current track
 set playingDuration to playingDuration as string
 set playingPosition to player position
 set playingPosition to playingPosition as string
-set result to playingTrack & "|" & playingAlbum & "|" & playingArtist & "|" & playingDuration & "|" & playingPosition`,
+set playingUrl to ""
+try
+	set playingUrl to database ID of current track
+on error
+	set playingUrl to ""
+end try
+set result to playingTrack & "|" & playingAlbum & "|" & playingArtist & "|" & playingDuration & "|" & playingPosition & "|" & playingUrl`,
 	)
 	if err != nil {
 		alog.Warn(ctx, "err:", zap.Error(err))
@@ -117,6 +123,8 @@ set result to playingTrack & "|" & playingAlbum & "|" & playingArtist & "|" & pl
 				return nil
 			}
 			info.Position = parseFloat
+		case 5:
+			info.Url = strings.TrimSpace(s)
 		}
 	}
 	return info

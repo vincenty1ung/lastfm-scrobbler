@@ -19,3 +19,12 @@ const (
 	PlayerStatePlaying = "Playing"
 	PlayerStatePaused  = "Paused"
 )
+
+// PlayerType 定义播放器类型
+type PlayerType string
+
+const (
+	PlayerAudirvana  PlayerType = "Audirvana"
+	PlayerRoon       PlayerType = "Roon"
+	PlayerAppleMusic PlayerType = "Apple Music"
+)

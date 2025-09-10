@@ -7,3 +7,4 @@
 /.logs/
 /.storage/
 /shell/bin/nowplaying-cli-mac
+/venv/
