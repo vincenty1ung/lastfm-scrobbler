@@ -35,7 +35,7 @@ func NewMusicAnalysisService() MusicAnalysisService {
 // ReportData 音乐偏好分析报告数据
 type ReportData struct {
 	TotalTracks   int64
-	TopTracks     []*model.TrackPlayCount
+	TopTracks     []*model.Track
 	RecentRecords []*model.TrackPlayRecord
 }
 
@@ -49,7 +49,7 @@ func (s *MusicAnalysisServiceImpl) GenerateMusicPreferenceReport(ctx context.Con
 	}
 
 	// 获取播放次数最多的曲目 (30条数据)
-	topTracks, err := model.GetTrackPlayCounts(ctx, 30, 0)
+	topTracks, err := model.GetTracks(ctx, 30, 0)
 	if err != nil {
 		log.Error(ctx, "Failed to get top tracks", zap.Error(err))
 		return nil, err
@@ -139,13 +139,13 @@ func GenerateMusicRecommendations(ctx context.Context, limit int) ([]MusicRecomm
 }
 
 // getAllTrackPlayCounts 获取所有播放统计记录
-func getAllTrackPlayCounts(ctx context.Context) ([]*model.TrackPlayCount, error) {
+func getAllTrackPlayCounts(ctx context.Context) ([]*model.Track, error) {
 	return model.GetAllTrackPlayCounts(ctx)
 }
 
 // calculateRecommendations 计算推荐分数并生成推荐列表
 func calculateRecommendations(
-	allTracks []*model.TrackPlayCount, recentRecords []*model.TrackPlayRecord, limit int,
+	allTracks []*model.Track, recentRecords []*model.TrackPlayRecord, limit int,
 ) []MusicRecommendation {
 	// 创建艺术家和专辑的播放频率映射
 	artistFrequency := make(map[string]int)
@@ -182,7 +182,7 @@ func calculateRecommendations(
 }
 
 // calculateScore 计算单个曲目的推荐分数
-func calculateScore(track *model.TrackPlayCount, artistFrequency, albumFrequency map[string]int) float64 {
+func calculateScore(track *model.Track, artistFrequency, albumFrequency map[string]int) float64 {
 	// 基础分数基于播放次数
 	baseScore := float64(track.PlayCount)
 
@@ -274,6 +274,6 @@ func GetArtistRecommendations(ctx context.Context, artist string, limit int) ([]
 }
 
 // getTracksByArtist 获取特定艺术家的所有曲目
-func getTracksByArtist(ctx context.Context, artist string) ([]*model.TrackPlayCount, error) {
+func getTracksByArtist(ctx context.Context, artist string) ([]*model.Track, error) {
 	return model.GetTracksByArtist(ctx, artist)
 }

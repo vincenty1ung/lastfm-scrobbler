@@ -48,9 +48,11 @@ type WsTrackInfo struct {
 	Type   string `json:"type"`
 	Source string `json:"source"`
 	Data   struct {
-		Title  string `json:"title"`
-		Album  string `json:"album"`
-		Artist string `json:"artist"`
+		Title      string `json:"title"`
+		Album      string `json:"album"`
+		Artist     string `json:"artist"`
+		AppleMusic bool   `json:"apple_music"`
+		LastFM     bool   `json:"lastfm"`
 	} `json:"data"`
 }
 

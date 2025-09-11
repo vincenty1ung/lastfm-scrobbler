@@ -49,3 +49,37 @@ func TestGetNowPlayingTrackInfo(t *testing.T) {
 		fmt.Println(info)
 	}
 }
+
+func TestIsFavorited(t *testing.T) {
+	ctx := context.Background()
+	// Check if Music is running first
+	if !IsRunning(ctx) {
+		// If Music is not running, we expect an error
+		favorited, err := IsFavorite(ctx)
+		assert.False(t, favorited)
+		assert.NotNil(t, err)
+		fmt.Println(favorited)
+	} else {
+		// If Music is running, we should get a boolean value or an error
+		favorited, err := IsFavorite(ctx)
+		// We just ensure the function doesn't panic
+		fmt.Println(favorited)
+		_ = favorited
+		_ = err
+	}
+}
+
+func TestSetFavorited(t *testing.T) {
+	ctx := context.Background()
+	// Check if Music is running first
+	if !IsRunning(ctx) {
+		// If Music is not running, we expect an error
+		err := SetFavorite(ctx, true)
+		assert.NotNil(t, err)
+	} else {
+		// If Music is running, we should be able to set favorited status
+		// We just ensure the function doesn't panic
+		err := SetFavorite(ctx, true)
+		_ = err
+	}
+}

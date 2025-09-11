@@ -61,11 +61,12 @@ func GetState(ctx context.Context) (playerState common.PlayerState, err error) {
 		alog.Warn(ctx, "err:", zap.Error(err))
 		return "", err
 	}
-	if result == "playing" {
+	switch result {
+	case "playing":
 		return common.PlayerStatePlaying, nil
-	} else if result == "paused" {
+	case "paused":
 		return common.PlayerStatePaused, nil
-	} else {
+	default:
 		return common.PlayerState(result), nil
 	}
 }
@@ -128,4 +129,40 @@ set result to playingTrack & "|" & playingAlbum & "|" & playingArtist & "|" & pl
 		}
 	}
 	return info
+}
+
+// IsFavorite checks if the current track is favorited in Apple Music
+func IsFavorite(ctx context.Context) (bool, error) {
+	tell, err := applesciprt.Tell(
+		"Music",
+		`if exists current track then
+		return favorited of current track
+	end if`,
+	)
+	if err != nil {
+		alog.Warn(ctx, "err:", zap.Error(err))
+		return false, err
+	}
+
+	parseBool, err := strconv.ParseBool(tell)
+	if err != nil {
+		alog.Warn(ctx, "err:", zap.Error(err))
+		return false, err
+	}
+	return parseBool, nil
+}
+
+// SetFavorite sets the favorited status of the current track in Apple Music
+func SetFavorite(ctx context.Context, favorited bool) error {
+	alog.Debug(ctx, "apple music. Track love status:", zap.Bool("favorited", favorited))
+	_, err := applesciprt.Tell(
+		"Music",
+		fmt.Sprintf(`set favorited of current track to %s`, strconv.FormatBool(favorited)),
+	)
+	if err != nil {
+		alog.Warn(ctx, "err:", zap.Error(err))
+		return err
+	}
+	alog.Info(ctx, "apple music. Track loved successfully")
+	return nil
 }

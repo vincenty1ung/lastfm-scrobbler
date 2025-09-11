@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
+	"github.com/vincenty1ung/lastfm-scrobbler/config"
 	alog "github.com/vincenty1ung/lastfm-scrobbler/core/log"
 )
 
@@ -58,6 +59,16 @@ type (
 		MusicBrainzTrackID string `json:"mbid,optional"`        // The MusicBrainz Track ID.
 		Context            string `json:"context,optional"`     // Sub-client version (not public, only enabled for certain API keys)
 		Duration           int64  `json:"duration,optional"`    // The length of the track in seconds.
+
+	}
+	TrackGetInfoReq struct {
+		base
+		// "artist", "track", "mbid", "username", "autocorrect"
+		Artist string `json:"artist"` // The artist name.
+		Track  string `json:"track"`  // The track name.
+		// Album              string `json:"album"`         // album
+		MusicBrainzTrackID string `json:"mbid,optional"` // The MusicBrainz Track ID.
+		Username           string `json:"username"`      // username
 
 	}
 	TrackUpdateNowPlayingResp struct {
@@ -193,6 +204,15 @@ func (t *TrackUpdateNowPlayingReq) ToMap() (res map[string]interface{}, err erro
 	return
 }
 
+func (t *TrackGetInfoReq) ToMap() (res map[string]interface{}, err error) {
+	res = make(map[string]any)
+	err = common.Decode(t, &res)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
 /*
 1.数据源服务：
 
@@ -237,6 +257,13 @@ func GetLovedTracksUser(user string, limit int) (result *GetLovedTracksResp, err
 
 func PushTrackScrobble(ctx context.Context, req *PushTrackScrobbleReq) (string, error) {
 	alog.Info(ctx, "PushTrackScrobble:", zap.Any("req", req))
+
+	// 检查API是否已初始化
+	if lastfmApi == nil || lastfmApi.Api == nil {
+		alog.Warn(ctx, "Last.fm API not initialized")
+		return "", fmt.Errorf("last.fm api not initialized")
+	}
+
 	reqMap, err := req.ToMap()
 	if err != nil {
 		alog.Warn(ctx, "TrackUpdateNowPlaying", zap.Error(err))
@@ -258,6 +285,13 @@ func PushTrackScrobble(ctx context.Context, req *PushTrackScrobbleReq) (string, 
 
 func TrackUpdateNowPlaying(ctx context.Context, req *TrackUpdateNowPlayingReq) error {
 	alog.Info(ctx, "TrackUpdateNowPlaying", zap.Any("req", req))
+
+	// 检查API是否已初始化
+	if lastfmApi == nil || lastfmApi.Api == nil {
+		alog.Warn(ctx, "Last.fm API not initialized")
+		return fmt.Errorf("last.fm api not initialized")
+	}
+
 	resp := new(TrackUpdateNowPlayingResp)
 	argsMap, err := req.ToMap()
 	if err != nil {
@@ -281,5 +315,85 @@ func TrackUpdateNowPlaying(ctx context.Context, req *TrackUpdateNowPlayingReq) e
 	}
 
 	// alog.Info(ctx, resp)
+	return nil
+}
+
+// IsFavorite checks if the track is loved/favorited in Last.fm
+func IsFavorite(ctx context.Context, artist, track string) (bool, error) {
+	alog.Info(ctx, "Checking if track is loved", zap.String("artist", artist), zap.String("track", track))
+
+	// 检查API是否已初始化
+	if lastfmApi == nil || lastfmApi.Api == nil {
+		alog.Warn(ctx, "Last.fm API not initialized")
+		return false, fmt.Errorf("last.fm api not initialized")
+	}
+	req := TrackGetInfoReq{
+		Artist:   artist,
+		Track:    track,
+		Username: config.ConfigObj.Lastfm.UserUsername,
+	}
+	// 调用Last.fm API获取歌曲信息
+	res, err := req.ToMap()
+	if err != nil {
+		alog.Warn(ctx, "IsFavorite", zap.Error(err))
+		return false, err
+	}
+	result, err := lastfmApi.Track.GetInfo(
+		res,
+	)
+	if err != nil {
+		alog.Warn(ctx, "Failed to get track info", zap.Error(err))
+		return false, err
+	}
+
+	// UserLoved字段为"1"表示已收藏，"0"表示未收藏
+	isLoved := result.UserLoved == "1"
+	alog.Info(ctx, "Track loved status", zap.Bool("isLoved", isLoved))
+
+	return isLoved, nil
+}
+
+// SetFavorite sets the loved/favorited status of the track in Last.fm
+func SetFavorite(ctx context.Context, artist, track string, favorited bool) error {
+	alog.Info(
+		ctx, "Setting track loved status", zap.String("artist", artist), zap.String("track", track),
+		zap.Bool("favorited", favorited),
+	)
+
+	// 检查API是否已初始化
+	if lastfmApi == nil || lastfmApi.Api == nil {
+		alog.Warn(ctx, "Last.fm API not initialized")
+		return fmt.Errorf("last.fm api not initialized")
+	}
+
+	var err error
+	if favorited {
+		// 收藏歌曲
+		err = lastfmApi.Track.Love(
+			map[string]interface{}{
+				"artist": artist,
+				"track":  track,
+			},
+		)
+		if err != nil {
+			alog.Warn(ctx, "Failed to love track", zap.Error(err))
+			return err
+		}
+		alog.Info(ctx, "Track loved successfully")
+	} else {
+		// 取消收藏歌曲
+		err = lastfmApi.Track.UnLove(
+			map[string]interface{}{
+				"artist": artist,
+				"track":  track,
+			},
+		)
+		if err != nil {
+			alog.Warn(ctx, "Failed to unlove track", zap.Error(err))
+			return err
+		}
+		alog.Info(ctx, "Track unloved successfully")
+	}
+
 	return nil
 }

@@ -30,8 +30,10 @@ type PlayerInfoHandler interface {
 // PlayerController 定义播放器控制接口
 type PlayerController interface {
 	IsRunning(ctx context.Context) bool
+	IsFavorite(ctx context.Context) bool
 	GetState(ctx context.Context) (string, error)
 	GetNowPlayingTrackInfo(ctx context.Context) PlayerInfoHandler
+	SetFavorite(ctx context.Context) error
 }
 
 // PlayerChecker 定义播放器检查器接口
@@ -202,21 +204,86 @@ func (b *BasePlayerChecker) processPlayingTrack(ctx context.Context, playerInfo 
 	position := playerInfo.GetPosition()
 	duration := playerInfo.GetDuration()
 
-	// 将播放信息写入本地缓存
+	// 查询数据库获取喜欢标志
+	appleMusicFav := false
+	lastFmFav := false
+	if getTrack, _ := b.trackService.GetTrack(
+		ctx, playerInfo.GetArtist(), playerInfo.GetAlbum(), playerInfo.GetTitle(),
+	); getTrack != nil {
+		appleMusicFav = getTrack.IsAppleMusicFav
+		lastFmFav = getTrack.IsLastFmFav
+		if !getTrack.IsAppleMusicFav {
+			favorite := b.controller.IsFavorite(ctx)
+			appleMusicFav = favorite
+			if favorite {
+				err := b.trackService.SetAppleMusicFavorite(
+					ctx, getTrack.Artist, getTrack.Album, getTrack.Track, true,
+				)
+				if err != nil {
+					log.Warn(
+						ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
+					)
+				}
+			}
+			// 更新lastfm 同步
+			if !getTrack.IsLastFmFav {
+				favorite, err := lastfm.IsFavorite(ctx, getTrack.Artist, getTrack.Track)
+				if err != nil {
+					log.Warn(
+						ctx, string(b.source)+" processPlayingTrack lastfm Favorite err", zap.Error(err),
+					)
+				}
+				lastFmFav = favorite
+				if favorite {
+					err := b.trackService.SetLastFmFavorite(
+						ctx, getTrack.Artist, getTrack.Album, getTrack.Track, true,
+					)
+					if err != nil {
+						log.Warn(
+							ctx, string(b.source)+" processPlayingTrack SetLastFmFavorite err", zap.Error(err),
+						)
+					}
+
+				}
+			}
+		}
+	} else {
+		// 检查Apple Music喜欢状态
+		if b.source == common.PlayerAppleMusic {
+			favorite := b.controller.IsFavorite(ctx)
+			appleMusicFav = favorite
+			if favorite {
+				err := b.trackService.SetAppleMusicFavorite(
+					ctx, playerInfo.GetArtist(), playerInfo.GetAlbum(), playerInfo.GetTitle(), true,
+				)
+				if err != nil {
+					log.Warn(
+						ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
+					)
+				}
+				_ = b.trackService.SetLastFmFavorite(ctx, playerInfo.GetArtist(), playerInfo.GetAlbum(), playerInfo.GetTitle(), true)
+			}
+		}
+	}
 	wti := &websocket.WsTrackInfo{
 		Type:   "now_playing",
 		Source: string(b.source),
 		Data: struct {
-			Title  string `json:"title"`
-			Album  string `json:"album"`
-			Artist string `json:"artist"`
+			Title      string `json:"title"`
+			Album      string `json:"album"`
+			Artist     string `json:"artist"`
+			AppleMusic bool   `json:"apple_music"`
+			LastFM     bool   `json:"lastfm"`
 		}{
-			playerInfo.GetTitle(),
-			playerInfo.GetAlbum(),
-			playerInfo.GetArtist(),
+			Title:      playerInfo.GetTitle(),
+			Album:      playerInfo.GetAlbum(),
+			Artist:     playerInfo.GetArtist(),
+			AppleMusic: appleMusicFav,
+			LastFM:     lastFmFav,
 		},
 	}
 	// 向WebSocket客户端广播播放信息
+	// 将播放信息写入本地缓存
 	b.currentPlayingCache.Store(b.source, wti)
 	b.atomicPlaying.Store(true)
 	websocket.BroadcastMessage(ctx, wti)
@@ -276,9 +343,40 @@ func (b *BasePlayerChecker) handleTrackScrobble(ctx context.Context, playerInfo 
 		log.Warn(ctx, string(b.source)+" Failed to increment track play count", zap.Error(err))
 	}
 
+	go func() {
+		if getTrack, _ := b.trackService.GetTrack(ctx, record.Artist, record.Artist, record.Track); getTrack != nil {
+			// 暂时重点关注 PlayerAppleMusic
+			if b.source == common.PlayerAppleMusic {
+				if !getTrack.IsAppleMusicFav {
+					favorite := b.controller.IsFavorite(ctx)
+					if favorite {
+						err := b.trackService.SetAppleMusicFavorite(
+							ctx, getTrack.Artist, getTrack.Album, getTrack.Track, true,
+						)
+						if err != nil {
+							log.Warn(
+								ctx, string(b.source)+" handleTrackScrobble SetAppleMusicFavorite err", zap.Error(err),
+							)
+						}
+						isFavorite, err := lastfm.IsFavorite(ctx, getTrack.Album, getTrack.Track)
+						if err != nil {
+							log.Warn(ctx, string(b.source)+" handleTrackScrobble lastfm IsFavorite err", zap.Error(err))
+						}
+						if isFavorite {
+							_ = lastfm.SetFavorite(ctx, getTrack.Album, getTrack.Track, true)
+						}
+					}
+				}
+			}
+		}
+	}()
+
 	b.mapedTracks[b.currentTrack] = true
 	b.pushCount.Add(1)
-	log.Info(ctx, string(b.source)+"标记听歌完成", zap.String("track", pushTrackScrobbleReq.Track), zap.Bool("scrobbled", record.Scrobbled))
+	log.Info(
+		ctx, string(b.source)+"标记听歌完成", zap.String("track", pushTrackScrobbleReq.Track),
+		zap.Bool("scrobbled", record.Scrobbled),
+	)
 }
 
 // handleNewTrack 处理新曲目

@@ -103,7 +103,7 @@ func setupRouter(name string) *gin.Engine {
 
 				// Execute template with records data
 				data := struct {
-					Records     []*model.TrackPlayCount
+					Records     []*model.Track
 					Limit       int
 					Offset      int
 					RecordCount int
@@ -140,7 +140,7 @@ func setupRouter(name string) *gin.Engine {
 				return
 			}
 
-			record, err := trackService.GetTrackPlayCount(c.Request.Context(), artist, album, trackName)
+			record, err := trackService.GetTrack(c.Request.Context(), artist, album, trackName)
 			if err != nil {
 				if err.Error() == "record not found" {
 					c.JSON(http.StatusOK, gin.H{"play_count": 0})
@@ -374,7 +374,7 @@ func setupRouter(name string) *gin.Engine {
 
 				// Execute template with records data
 				data := struct {
-					Records     []*model.TrackPlayCount
+					Records     []*model.Track
 					Limit       int
 					Offset      int
 					RecordCount int
@@ -514,86 +514,139 @@ func setupRouter(name string) *gin.Engine {
 	)
 
 	// 获取按来源统计的播放次数
-	r.GET("/api/dashboard/play-counts-by-source", func(c *gin.Context) {
-		ctx := c.Request.Context()
+	r.GET(
+		"/api/dashboard/play-counts-by-source", func(c *gin.Context) {
+			ctx := c.Request.Context()
 
-		sourceCounts, err := trackService.GetPlayCountsBySource(ctx)
-		if err != nil {
-			log.Error(ctx, "Failed to get play counts by source", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get play counts by source"})
-			return
-		}
+			sourceCounts, err := trackService.GetPlayCountsBySource(ctx)
+			if err != nil {
+				log.Error(ctx, "Failed to get play counts by source", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get play counts by source"})
+				return
+			}
 
-		c.JSON(http.StatusOK, sourceCounts)
-	})
+			c.JSON(http.StatusOK, sourceCounts)
+		},
+	)
 
 	// 获取未同步到Last.fm的播放记录（分页）
-	r.GET("/api/unscrobbled-records", func(c *gin.Context) {
-		ctx := c.Request.Context()
+	r.GET(
+		"/api/unscrobbled-records", func(c *gin.Context) {
+			ctx := c.Request.Context()
 
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+			limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+			offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-		if limit > 100 {
-			limit = 100 // Limit max records per page
-		}
+			if limit > 100 {
+				limit = 100 // Limit max records per page
+			}
 
-		records, err := trackService.GetUnscrobbledRecordsWithPagination(ctx, limit, offset)
-		if err != nil {
-			log.Error(ctx, "Failed to get unscrobbled records", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get unscrobbled records"})
-			return
-		}
+			records, err := trackService.GetUnscrobbledRecordsWithPagination(ctx, limit, offset)
+			if err != nil {
+				log.Error(ctx, "Failed to get unscrobbled records", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get unscrobbled records"})
+				return
+			}
 
-		c.JSON(http.StatusOK, records)
-	})
+			c.JSON(http.StatusOK, records)
+		},
+	)
 
 	// 获取未同步到Last.fm的播放记录总数
-	r.GET("/api/unscrobbled-records/count", func(c *gin.Context) {
-		ctx := c.Request.Context()
+	r.GET(
+		"/api/unscrobbled-records/count", func(c *gin.Context) {
+			ctx := c.Request.Context()
 
-		count, err := trackService.GetUnscrobbledRecordsCount(ctx)
-		if err != nil {
-			log.Error(ctx, "Failed to get unscrobbled records count", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get unscrobbled records count"})
-			return
-		}
+			count, err := trackService.GetUnscrobbledRecordsCount(ctx)
+			if err != nil {
+				log.Error(ctx, "Failed to get unscrobbled records count", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get unscrobbled records count"})
+				return
+			}
 
-		c.JSON(http.StatusOK, gin.H{"count": count})
-	})
+			c.JSON(http.StatusOK, gin.H{"count": count})
+		},
+	)
 
 	// 同步选中的未同步记录到Last.fm
-	r.POST("/api/unscrobbled-records/sync", func(c *gin.Context) {
-		ctx := c.Request.Context()
+	r.POST(
+		"/api/unscrobbled-records/sync", func(c *gin.Context) {
+			ctx := c.Request.Context()
 
-		var req struct {
-			IDs []uint `json:"ids"`
-		}
+			var req struct {
+				IDs []uint `json:"ids"`
+			}
 
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+				return
+			}
 
-		if len(req.IDs) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "No record IDs provided"})
-			return
-		}
+			if len(req.IDs) == 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "No record IDs provided"})
+				return
+			}
 
-		// 调用logic层方法同步选中的记录
-		successCount, failedRecords, err := trackService.SyncSelectedUnscrobbledRecords(ctx, req.IDs)
-		if err != nil {
-			log.Error(ctx, "Failed to sync selected unscrobbled records", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sync records"})
-			return
-		}
+			// 调用logic层方法同步选中的记录
+			successCount, failedRecords, err := trackService.SyncSelectedUnscrobbledRecords(ctx, req.IDs)
+			if err != nil {
+				log.Error(ctx, "Failed to sync selected unscrobbled records", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sync records"})
+				return
+			}
 
-		c.JSON(http.StatusOK, gin.H{
-			"success_count":  successCount,
-			"failed_count":   len(failedRecords),
-			"failed_records": failedRecords,
-		})
-	})
+			c.JSON(
+				http.StatusOK, gin.H{
+					"success_count":  successCount,
+					"failed_count":   len(failedRecords),
+					"failed_records": failedRecords,
+				},
+			)
+		},
+	)
+
+	// 处理收藏请求
+	r.POST(
+		"/api/favorite", func(c *gin.Context) {
+			ctx := c.Request.Context()
+
+			var req struct {
+				Artist   string `json:"artist"`
+				Album    string `json:"album"`
+				Track    string `json:"track"`
+				Source   string `json:"source"`
+				Favorite bool   `json:"favorite"`
+			}
+
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+				return
+			}
+
+			// 验证必要参数
+			if req.Artist == "" || req.Album == "" || req.Track == "" || req.Source == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "artist, album, track, and source are required"})
+				return
+			}
+
+			// 调用logic层方法处理收藏逻辑
+			appleMusicFav, lastFmFav, err := trackService.SetTrackFavorite(
+				ctx, req.Artist, req.Album, req.Track, req.Source, req.Favorite,
+			)
+			if err != nil {
+				log.Error(ctx, "Failed to set track favorite", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set track favorite"})
+				return
+			}
+
+			c.JSON(
+				http.StatusOK, gin.H{
+					"apple_music": appleMusicFav,
+					"lastfm":      lastFmFav,
+				},
+			)
+		},
+	)
 
 	return r
 }

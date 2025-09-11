@@ -100,7 +100,7 @@ func _CheckPlayingTrack(ctx context.Context, playerTypes []common.PlayerType, st
 	if err != nil {
 		panic(err)
 	}
-	
+
 	pushCount.Store(uint32(counts))
 
 	// 为每个playerType启动一个goroutine

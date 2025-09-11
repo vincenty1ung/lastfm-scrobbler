@@ -1,6 +1,15 @@
 # 内存索引
 
+## 2025-09-11
+- **日期**: 2025-09-11
+  - **特性摘要**: 实现曲目收藏功能，允许用户通过前端界面收藏正在播放的曲目，并在Apple Music和Last.fm上同步收藏状态
+  - **链接**: [曲目收藏功能特性清单](memory/2025-09-11/track_favorite_feature_manifest.md)
+
 ## 2025-09-10
+- **日期**: 2025-09-10
+  - **特性摘要**: 实现Last.fm音乐收藏（喜爱）功能，包括检查和设置歌曲收藏状态
+  - **链接**: [Last.fm收藏功能特性清单](memory/2025-09-10/lastfm_favorite_feature_manifest.md)
+
 - **日期**: 2025-09-10
   - **特性摘要**: 为TrackPlayRecord模型增加分页查询未同步记录的功能，并实现批量同步到Last.fm的逻辑
   - **链接**: [播放记录同步功能特性清单](memory/2025-09-10/track_play_record_sync_feature_manifest.md)
@@ -8,6 +17,10 @@
 - **日期**: 2025-09-10
   - **特性摘要**: 定义Go后端开发的分层架构规范，确保业务逻辑、数据访问和API接口的职责分离
   - **链接**: [Go后端开发规范](memory/2025-09-10/golang_backend_development_rules.md)
+
+- **日期**: 2025-09-10
+  - **特性摘要**: 重构TrackPlayCount模型为新的Track模型，并增加对Apple Music和Last.fm喜欢状态的支持
+  - **链接**: [Track模型重构和喜欢状态功能特性清单](memory/2025-09-10/track_model_refactor_and_favorite_feature_manifest.md)
 
 ## 2025-09-07
 - **日期**: 2025-09-07

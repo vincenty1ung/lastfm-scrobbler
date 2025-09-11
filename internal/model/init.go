@@ -36,8 +36,8 @@ func InitDB(dataSourceName string, l *zap.Logger) error {
 		return err
 	}
 
-	// Auto migrate the schema for TrackPlayCount
-	err = GlobalDB.AutoMigrate(&TrackPlayCount{})
+	// Auto migrate the schema for Track
+	err = GlobalDB.AutoMigrate(&Track{})
 	if err != nil {
 		return err
 	}

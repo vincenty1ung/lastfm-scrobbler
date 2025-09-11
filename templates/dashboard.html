@@ -332,6 +332,8 @@
         border-radius: 4px;
         margin-bottom: 4px;
         align-self: flex-end;
+        display: inline-block;
+        width: auto;
       }
 
       .source-applemusic {
@@ -486,6 +488,68 @@
         font-size: 1.2rem;
       }
 
+      /* 调整悬浮窗内容区域的最小高度 */
+      #nowPlayingInfo {
+        min-height: 120px;
+      }
+
+      /* 喜欢状态指示器容器 */
+      .favorite-indicators-container {
+        margin-top: 10px;
+        text-align: right; /* 右对齐 */
+      }
+
+      /* 喜欢状态指示器 */
+      .favorite-indicator {
+        display: inline-block;
+        margin-left: 0;
+        vertical-align: middle;
+        font-size: 0.8em;
+        color: var(--text-secondary);
+      }
+
+      /* 收藏按钮样式调整 */
+      .favorite-button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: transform 0.2s ease, color 0.2s ease;
+        margin-top: 10px;
+        padding: 0;
+        width: auto;
+        height: auto;
+      }
+
+      .favorite-button:hover {
+        transform: scale(1.1);
+      }
+
+      .favorite-button.liked {
+        color: var(--source-applemusic);
+        cursor: not-allowed; /* 已收藏时禁用点击 */
+      }
+
+      .favorite-button.unliked {
+        color: #ccc;
+      }
+
+      /* 歌曲标题和收藏按钮容器 */
+      .track-title-favorite-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 5px;
+      }
+
+      /* 确保歌曲标题在容器中正确显示 */
+      .track-title {
+        flex-grow: 1; /* 允许标题占据可用空间 */
+        white-space: nowrap; /* 防止标题换行 */
+        overflow: hidden; /* 隐藏超出部分 */
+        text-overflow: ellipsis; /* 超出部分显示省略号 */
+      }
+
       /* 正在播放悬浮窗头部 */
       .now-playing-header {
         display: flex;
@@ -548,6 +612,41 @@
         border-bottom: none;
         margin-bottom: 0;
       }
+
+      /* 喜欢状态指示器 */
+      .favorite-indicator {
+        display: inline-block;
+        margin-left: 10px;
+        vertical-align: middle;
+        font-size: 0.8em;
+        color: var(--text-secondary);
+      }
+
+      /* 点赞按钮 */
+      .favorite-button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: transform 0.2s ease, color 0.2s ease;
+        margin-top: 10px;
+        padding: 0;
+        width: auto;
+        height: auto;
+      }
+
+      .favorite-button:hover {
+        transform: scale(1.1);
+      }
+
+      .favorite-button.liked {
+        color: var(--source-applemusic);
+        cursor: not-allowed; /* 已收藏时禁用点击 */
+      }
+
+      .favorite-button.unliked {
+        color: #ccc;
+      }
     </style>
   </head>
   <body>
@@ -561,10 +660,22 @@
         </div>
       </div>
       <div id="nowPlayingInfo">
-        <div class="track-title" id="trackTitle"></div>
+        <div class="track-title-favorite-container">
+          <div class="track-title" id="trackTitle"></div>
+          <button
+            class="favorite-button unliked"
+            id="favoriteButton"
+            title="添加到喜欢"
+          >
+            ♡
+          </button>
+        </div>
         <div class="track-album" id="trackAlbum"></div>
         <div class="track-artist" id="trackArtist"></div>
         <div class="track-source" id="trackSource"></div>
+        <div class="favorite-indicators-container">
+          <div class="favorite-indicators" id="favoriteIndicators"></div>
+        </div>
       </div>
     </div>
 
@@ -575,17 +686,17 @@
           <a href="/" class="logo">音乐统计系统</a>
           <ul class="nav-links">
             <li><a href="/" class="active">仪表板</a></li>
-            <li><a href="/report">分析报告</a></li>
-            <li><a href="/playCounts">播放统计</a></li>
             <li><a href="#" id="unscrobbledTab">未上报</a></li>
             <li><a href="/recommendations">音乐推荐</a></li>
+            <li><a href="/report">分析报告</a></li>
+            <li><a href="/playCounts">播放统计</a></li>
           </ul>
         </div>
       </nav>
 
       <!-- 统计卡片 -->
       <div class="stats-container">
-        <div class="stat-card" style="flex: 1; min-width: 200px;">
+        <div class="stat-card" style="flex: 1; min-width: 200px">
           <div class="stat-header">
             <div class="stat-title">总播放次数</div>
             <div class="stat-icon icon-1">▶️</div>
@@ -594,7 +705,7 @@
           <div class="stat-change positive">↑ 12% 本月</div>
         </div>
 
-        <div class="stat-card" style="flex: 1; min-width: 200px;">
+        <div class="stat-card" style="flex: 1; min-width: 200px">
           <div class="stat-header">
             <div class="stat-title">曲目总数</div>
             <div class="stat-icon icon-2">🎵</div>
@@ -603,7 +714,7 @@
           <div class="stat-change positive">↑ 5% 本月</div>
         </div>
 
-        <div class="stat-card" style="flex: 1; min-width: 200px;">
+        <div class="stat-card" style="flex: 1; min-width: 200px">
           <div class="stat-header">
             <div class="stat-title">艺术家数量</div>
             <div class="stat-icon icon-3">🎤</div>
@@ -612,7 +723,7 @@
           <div class="stat-change negative">↓ 2% 本月</div>
         </div>
 
-        <div class="stat-card" style="flex: 1; min-width: 200px;">
+        <div class="stat-card" style="flex: 1; min-width: 200px">
           <div class="stat-header">
             <div class="stat-title">专辑数量</div>
             <div class="stat-icon icon-4">💿</div>
@@ -622,12 +733,15 @@
         </div>
 
         <!-- 播放来源统计卡片 -->
-        <div class="stat-card" style="flex: 1; min-width: 200px;">
+        <div class="stat-card" style="flex: 1; min-width: 200px">
           <div class="stat-header">
             <div class="stat-title">播放来源分布</div>
             <div class="stat-icon icon-1">📊</div>
           </div>
-          <div class="chart-container" style="height: 150px; position: relative;">
+          <div
+            class="chart-container"
+            style="height: 150px; position: relative"
+          >
             <canvas id="sourceChart"></canvas>
           </div>
         </div>
@@ -696,21 +810,35 @@
       </div>
 
       <!-- 未上报记录容器 -->
-      <div id="unscrobbledContainer" style="display: none;">
+      <div id="unscrobbledContainer" style="display: none">
         <div class="chart-card">
           <div class="card-header">
             <div class="card-title">未上报记录</div>
             <div>
-              <button id="syncSelectedBtn" class="time-filter" style="margin-right: 10px;">同步选中</button>
-              <button id="refreshUnscrobbledBtn" class="time-filter">刷新</button>
+              <button
+                id="syncSelectedBtn"
+                class="time-filter"
+                style="margin-right: 10px"
+              >
+                同步选中
+              </button>
+              <button id="refreshUnscrobbledBtn" class="time-filter">
+                刷新
+              </button>
             </div>
           </div>
           <div id="unscrobbledContent">
             <div class="loading">加载中...</div>
           </div>
-          <div id="pagination" style="display: flex; justify-content: center; margin-top: 20px;">
+          <div
+            id="pagination"
+            style="display: flex; justify-content: center; margin-top: 20px"
+          >
             <button id="prevPage" class="time-filter" disabled>上一页</button>
-            <span id="pageInfo" style="margin: 0 15px; line-height: 36px;"></span>
+            <span
+              id="pageInfo"
+              style="margin: 0 15px; line-height: 36px"
+            ></span>
             <button id="nextPage" class="time-filter">下一页</button>
           </div>
         </div>
@@ -756,28 +884,150 @@
         };
       }
 
+      // 当前播放的曲目信息
+      let currentTrackInfo = null;
+      let currentSource = null;
+
       // 更新正在播放的信息
       function updateNowPlaying(source, data) {
+        // 保存当前播放信息
+        currentTrackInfo = data;
+        currentSource = source;
+
         // 显示悬浮窗
         document.getElementById("nowPlaying").style.display = "block";
 
         // 根据来源更新信息
+        let sourceClass = "";
+        let sourceText = "";
+
         if (source === "Audirvana") {
           document.getElementById("trackTitle").textContent = data.title;
           document.getElementById("trackAlbum").textContent = data.album;
           document.getElementById("trackArtist").textContent = data.artist;
-          document.getElementById("trackSource").textContent = "Audirvana";
+          sourceClass = "source-audirvana";
+          sourceText = "Audirvana";
         } else if (source === "Roon") {
           document.getElementById("trackTitle").textContent = data.title;
           document.getElementById("trackAlbum").textContent = data.album;
           document.getElementById("trackArtist").textContent = data.artist;
-          document.getElementById("trackSource").textContent = "Roon";
+          sourceClass = "source-roon";
+          sourceText = "Roon";
         } else if (source === "Apple Music") {
           document.getElementById("trackTitle").textContent = data.title;
           document.getElementById("trackAlbum").textContent = data.album;
           document.getElementById("trackArtist").textContent = data.artist;
-          document.getElementById("trackSource").textContent = "AppleMusic";
+          sourceClass = "source-applemusic";
+          sourceText = "AppleMusic";
         }
+
+        // 更新播放渠道显示样式
+        const trackSourceElement = document.getElementById("trackSource");
+        trackSourceElement.textContent = sourceText;
+        trackSourceElement.className = "play-source " + sourceClass;
+
+        // 更新喜欢状态指示器
+        updateFavoriteIndicators(data.apple_music, data.lastfm);
+
+        // 更新点赞按钮状态
+        updateFavoriteButtonState(data.apple_music);
+      }
+
+      // 更新喜欢状态指示器
+      function updateFavoriteIndicators(appleMusicFav, lastFmFav) {
+        const indicatorsContainer =
+          document.getElementById("favoriteIndicators");
+        indicatorsContainer.innerHTML = "";
+
+        if (appleMusicFav && lastFmFav) {
+          // 两个都喜欢，显示文本提示
+          const indicator = document.createElement("span");
+          indicator.className = "favorite-indicator";
+          indicator.innerHTML = "Apple Music 和 Last.fm 都喜欢";
+          indicator.title = "Apple Music 和 Last.fm 都喜欢";
+          indicatorsContainer.appendChild(indicator);
+        } else if (appleMusicFav) {
+          // 只有Apple Music喜欢，显示文本提示
+          const indicator = document.createElement("span");
+          indicator.className = "favorite-indicator";
+          indicator.innerHTML = "Apple Music 喜欢";
+          indicator.title = "Apple Music 喜欢";
+          indicatorsContainer.appendChild(indicator);
+        } else if (lastFmFav) {
+          // 只有Last.fm喜欢，显示文本提示
+          const indicator = document.createElement("span");
+          indicator.className = "favorite-indicator";
+          indicator.innerHTML = "Last.fm 喜欢";
+          indicator.title = "Last.fm 喜欢";
+          indicatorsContainer.appendChild(indicator);
+        }
+        // 如果两个都不喜欢，则不显示任何指示器
+      }
+
+      // 更新点赞按钮状态
+      function updateFavoriteButtonState(isLiked) {
+        const favoriteButton = document.getElementById("favoriteButton");
+        if (isLiked) {
+          favoriteButton.innerHTML = "★";
+          favoriteButton.className = "favorite-button liked";
+          favoriteButton.title = "已添加到喜欢";
+        } else {
+          favoriteButton.innerHTML = "⭐︎";
+          favoriteButton.className = "favorite-button unliked";
+          favoriteButton.title = "添加到喜欢";
+        }
+      }
+
+      // 点赞按钮点击事件处理
+      function handleFavoriteButtonClick() {
+        if (!currentTrackInfo || !currentSource) {
+          console.log("没有正在播放的曲目");
+          return;
+        }
+
+        const favoriteButton = document.getElementById("favoriteButton");
+        const isCurrentlyLiked = favoriteButton.classList.contains("liked");
+
+        // 如果已经收藏，则不执行任何操作
+        if (isCurrentlyLiked) {
+          return;
+        }
+
+        // 立即更新按钮状态，提供即时反馈
+        updateFavoriteButtonState(!isCurrentlyLiked);
+
+        // 发送请求到后端处理收藏逻辑
+        fetch("/api/favorite", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            artist: currentTrackInfo.artist,
+            album: currentTrackInfo.album,
+            track: currentTrackInfo.title,
+            source: currentSource,
+            favorite: !isCurrentlyLiked,
+          }),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("网络响应错误");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            // 更新喜欢状态指示器
+            updateFavoriteIndicators(data.apple_music, data.lastfm);
+            // 更新按钮状态（以防后端返回的状态与前端不一致）
+            updateFavoriteButtonState(data.apple_music);
+          })
+          .catch((error) => {
+            console.error("收藏操作失败:", error);
+            // 恢复按钮原始状态
+            updateFavoriteButtonState(isCurrentlyLiked);
+            alert("收藏操作失败: " + error.message);
+          });
       }
 
       // 初始化正在播放悬浮窗的拖动和缩小功能
@@ -913,14 +1163,14 @@
           .then((data) => {
             // 处理数据
             const sources = Object.keys(data);
-            const counts = sources.map(source => data[source]);
+            const counts = sources.map((source) => data[source]);
 
             // 定义颜色
             const backgroundColors = [
-              "rgba(231, 76, 60, 0.7)",  // Apple Music - 红色
+              "rgba(231, 76, 60, 0.7)", // Apple Music - 红色
               "rgba(155, 89, 182, 0.7)", // Audirvana - 紫色
               "rgba(127, 140, 141, 0.7)", // Roon - 灰色
-              "rgba(52, 152, 219, 0.7)",  // 其他 - 蓝色
+              "rgba(52, 152, 219, 0.7)", // 其他 - 蓝色
             ];
 
             const borderColors = [
@@ -954,21 +1204,24 @@
                       boxWidth: 12,
                       padding: 8,
                       font: {
-                        size: 12
-                      }
-                    }
+                        size: 12,
+                      },
+                    },
                   },
                   tooltip: {
                     callbacks: {
-                      label: function(context) {
+                      label: function (context) {
                         const label = context.label || "";
                         const value = context.raw || 0;
-                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const total = context.dataset.data.reduce(
+                          (a, b) => a + b,
+                          0
+                        );
                         const percentage = Math.round((value / total) * 100);
                         return `${label}: ${value} (${percentage}%)`;
-                      }
-                    }
-                  }
+                      },
+                    },
+                  },
                 },
                 cutout: "60%",
               },
@@ -977,8 +1230,10 @@
           .catch((error) => {
             console.error("获取播放来源数据失败:", error);
             // 显示错误信息
-            const chartContainer = document.getElementById("sourceChart").parentElement;
-            chartContainer.innerHTML = '<div class="error">加载失败: ' + error.message + "</div>";
+            const chartContainer =
+              document.getElementById("sourceChart").parentElement;
+            chartContainer.innerHTML =
+              '<div class="error">加载失败: ' + error.message + "</div>";
           });
       }
 
@@ -1466,57 +1721,68 @@
 
         // 获取未上报记录总数
         fetch("/api/unscrobbled-records/count")
-          .then(response => {
+          .then((response) => {
             if (!response.ok) {
               throw new Error("网络响应错误");
             }
             return response.json();
           })
-          .then(data => {
+          .then((data) => {
             totalUnscrobbledRecords = data.count;
             updatePagination();
           })
-          .catch(error => {
+          .catch((error) => {
             console.error("获取未上报记录总数失败:", error);
           });
 
         // 获取未上报记录
-        fetch(`/api/unscrobbled-records?limit=${unscrobbledPageSize}&offset=${offset}`)
-          .then(response => {
+        fetch(
+          `/api/unscrobbled-records?limit=${unscrobbledPageSize}&offset=${offset}`
+        )
+          .then((response) => {
             if (!response.ok) {
               throw new Error("网络响应错误");
             }
             return response.json();
           })
-          .then(data => {
+          .then((data) => {
             renderUnscrobbledRecords(data);
           })
-          .catch(error => {
+          .catch((error) => {
             console.error("获取未上报记录失败:", error);
-            content.innerHTML = '<div class="error">加载失败: ' + error.message + "</div>";
+            content.innerHTML =
+              '<div class="error">加载失败: ' + error.message + "</div>";
           });
       }
 
       // 渲染未上报记录
       function renderUnscrobbledRecords(records) {
         const content = document.getElementById("unscrobbledContent");
-        
+
         if (records.length === 0) {
           content.innerHTML = '<div class="loading">暂无未上报记录</div>';
           return;
         }
 
-        let html = '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
-        html += '<thead><tr style="background-color: #f1f3f9; text-align: left;">';
-        html += '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;"></th>';
-        html += '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">曲目</th>';
-        html += '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">艺术家</th>';
-        html += '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">专辑</th>';
-        html += '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">播放时间</th>';
-        html += '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">来源</th>';
+        let html =
+          '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
+        html +=
+          '<thead><tr style="background-color: #f1f3f9; text-align: left;">';
+        html +=
+          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;"></th>';
+        html +=
+          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">曲目</th>';
+        html +=
+          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">艺术家</th>';
+        html +=
+          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">专辑</th>';
+        html +=
+          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">播放时间</th>';
+        html +=
+          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">来源</th>';
         html += "</tr></thead><tbody>";
 
-        records.forEach(record => {
+        records.forEach((record) => {
           const playTime = new Date(record.play_time);
           const timeString = playTime.toLocaleString("zh-CN");
 
@@ -1558,7 +1824,9 @@
 
       // 更新分页信息
       function updatePagination() {
-        const totalPages = Math.ceil(totalUnscrobbledRecords / unscrobbledPageSize);
+        const totalPages = Math.ceil(
+          totalUnscrobbledRecords / unscrobbledPageSize
+        );
         const pageInfo = document.getElementById("pageInfo");
         const prevBtn = document.getElementById("prevPage");
         const nextBtn = document.getElementById("nextPage");
@@ -1577,14 +1845,16 @@
 
       // 同步选中的记录
       function syncSelectedRecords() {
-        const checkboxes = document.querySelectorAll(".record-checkbox:checked");
+        const checkboxes = document.querySelectorAll(
+          ".record-checkbox:checked"
+        );
         if (checkboxes.length === 0) {
           alert("请先选择要同步的记录");
           return;
         }
 
-        const ids = Array.from(checkboxes).map(cb => parseInt(cb.dataset.id));
-        
+        const ids = Array.from(checkboxes).map((cb) => parseInt(cb.dataset.id));
+
         // 禁用按钮并显示加载状态
         const syncBtn = document.getElementById("syncSelectedBtn");
         const originalText = syncBtn.textContent;
@@ -1598,19 +1868,21 @@
           },
           body: JSON.stringify({ ids: ids }),
         })
-          .then(response => {
+          .then((response) => {
             if (!response.ok) {
               throw new Error("网络响应错误");
             }
             return response.json();
           })
-          .then(data => {
+          .then((data) => {
             if (data.failed_count > 0) {
-              alert(`同步完成: ${data.success_count} 条记录同步成功, ${data.failed_count} 条记录同步失败`);
+              alert(
+                `同步完成: ${data.success_count} 条记录同步成功, ${data.failed_count} 条记录同步失败`
+              );
               // 显示失败的记录
               if (data.failed_records && data.failed_records.length > 0) {
                 let failedList = "同步失败的记录:\n";
-                data.failed_records.forEach(record => {
+                data.failed_records.forEach((record) => {
                   failedList += `- ${record.track} - ${record.artist}\n`;
                 });
                 console.log(failedList);
@@ -1618,11 +1890,11 @@
             } else {
               alert(`同步完成: ${data.success_count} 条记录同步成功`);
             }
-            
+
             // 重新加载未上报记录
             loadUnscrobbledRecords();
           })
-          .catch(error => {
+          .catch((error) => {
             console.error("同步记录失败:", error);
             alert("同步记录失败: " + error.message);
           })
@@ -1770,53 +2042,72 @@
         initNowPlayingDrag();
 
         // 未上报标签页点击事件
-        document.getElementById("unscrobbledTab").addEventListener("click", function(e) {
-          e.preventDefault();
-          
-          // 隐藏其他内容
-          document.querySelector(".stats-container").style.display = "none";
-          document.querySelector(".charts-container").style.display = "none";
-          document.querySelector(".rankings-container").style.display = "none";
-          
-          // 显示未上报容器
-          document.getElementById("unscrobbledContainer").style.display = "block";
-          
-          // 更新导航栏活动状态
-          document.querySelectorAll(".nav-links a").forEach(link => {
-            link.classList.remove("active");
+        document
+          .getElementById("unscrobbledTab")
+          .addEventListener("click", function (e) {
+            e.preventDefault();
+
+            // 隐藏其他内容
+            document.querySelector(".stats-container").style.display = "none";
+            document.querySelector(".charts-container").style.display = "none";
+            document.querySelector(".rankings-container").style.display =
+              "none";
+
+            // 显示未上报容器
+            document.getElementById("unscrobbledContainer").style.display =
+              "block";
+
+            // 更新导航栏活动状态
+            document.querySelectorAll(".nav-links a").forEach((link) => {
+              link.classList.remove("active");
+            });
+            this.classList.add("active");
+
+            // 加载未上报记录
+            currentUnscrobbledPage = 1;
+            loadUnscrobbledRecords();
           });
-          this.classList.add("active");
-          
-          // 加载未上报记录
-          currentUnscrobbledPage = 1;
-          loadUnscrobbledRecords();
-        });
 
         // 刷新按钮点击事件
-        document.getElementById("refreshUnscrobbledBtn").addEventListener("click", function() {
-          loadUnscrobbledRecords();
-        });
+        document
+          .getElementById("refreshUnscrobbledBtn")
+          .addEventListener("click", function () {
+            loadUnscrobbledRecords();
+          });
 
         // 同步选中按钮点击事件
-        document.getElementById("syncSelectedBtn").addEventListener("click", function() {
-          syncSelectedRecords();
-        });
+        document
+          .getElementById("syncSelectedBtn")
+          .addEventListener("click", function () {
+            syncSelectedRecords();
+          });
 
         // 分页按钮事件
-        document.getElementById("prevPage").addEventListener("click", function() {
-          if (currentUnscrobbledPage > 1) {
-            currentUnscrobbledPage--;
-            loadUnscrobbledRecords();
-          }
-        });
+        document
+          .getElementById("prevPage")
+          .addEventListener("click", function () {
+            if (currentUnscrobbledPage > 1) {
+              currentUnscrobbledPage--;
+              loadUnscrobbledRecords();
+            }
+          });
 
-        document.getElementById("nextPage").addEventListener("click", function() {
-          const totalPages = Math.ceil(totalUnscrobbledRecords / unscrobbledPageSize);
-          if (currentUnscrobbledPage < totalPages) {
-            currentUnscrobbledPage++;
-            loadUnscrobbledRecords();
-          }
-        });
+        document
+          .getElementById("nextPage")
+          .addEventListener("click", function () {
+            const totalPages = Math.ceil(
+              totalUnscrobbledRecords / unscrobbledPageSize
+            );
+            if (currentUnscrobbledPage < totalPages) {
+              currentUnscrobbledPage++;
+              loadUnscrobbledRecords();
+            }
+          });
+
+        // 点赞按钮点击事件
+        document
+          .getElementById("favoriteButton")
+          .addEventListener("click", handleFavoriteButtonClick);
       });
     </script>
   </body>

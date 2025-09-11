@@ -3,10 +3,13 @@ package scrobbler
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/applemusic"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/audirvana"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/exec"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/log"
 )
 
 // AudirvanaTrackInfoWrapper 包装 Audirvana TrackInfo 以实现 PlayerInfoHandler 接口
@@ -57,6 +60,13 @@ func (a *AudirvanaPlayerController) GetNowPlayingTrackInfo(ctx context.Context) 
 		return nil
 	}
 	return &AudirvanaTrackInfoWrapper{info, BaseWrapper{}}
+}
+func (a *AudirvanaPlayerController) SetFavorite(ctx context.Context) error {
+	return nil
+}
+
+func (a *AudirvanaPlayerController) IsFavorite(ctx context.Context) bool {
+	return false
 }
 
 // RoonTrackInfoWrapper 包装 MRMediaNowPlaying 以实现 PlayerInfoHandler 接口
@@ -119,6 +129,13 @@ func (r *RoonPlayerController) GetNowPlayingTrackInfo(ctx context.Context) Playe
 	return &RoonTrackInfoWrapper{playing, BaseWrapper{}}
 }
 
+func (a *RoonPlayerController) SetFavorite(ctx context.Context) error {
+	return nil
+}
+func (a *RoonPlayerController) IsFavorite(ctx context.Context) bool {
+	return false
+}
+
 // AppleMusicTrackInfoWrapper 包装 AppleMusic TrackInfo 以实现 PlayerInfoHandler 接口
 type AppleMusicTrackInfoWrapper struct {
 	*applemusic.TrackInfo
@@ -167,4 +184,24 @@ func (a *AppleMusicPlayerController) GetNowPlayingTrackInfo(ctx context.Context)
 		return nil
 	}
 	return &AppleMusicTrackInfoWrapper{info, BaseWrapper{}}
+}
+
+func (a *AppleMusicPlayerController) SetFavorite(ctx context.Context) error {
+	favorite := a.IsFavorite(ctx)
+	if !favorite {
+		err := applemusic.SetFavorite(ctx, true)
+		if err != nil {
+			log.Warn(ctx, "AppleMusicPlayerController SetFavorite", zap.Error(err))
+			return err
+		}
+	}
+	return nil
+}
+func (a *AppleMusicPlayerController) IsFavorite(ctx context.Context) bool {
+	favorite, err := applemusic.IsFavorite(ctx)
+	if err != nil {
+		log.Warn(ctx, "AppleMusicPlayerController IsFavorite", zap.Error(err))
+		return false
+	}
+	return favorite
 }

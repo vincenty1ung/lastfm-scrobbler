@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
 )
 
