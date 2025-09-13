@@ -529,6 +529,37 @@ func setupRouter(name string) *gin.Engine {
 		},
 	)
 
+	// 获取热门专辑数据（按播放次数）
+	r.GET(
+		"/api/dashboard/top-albums", func(c *gin.Context) {
+			ctx := c.Request.Context()
+
+			// 获取时间范围参数，默认30天
+			daysStr := c.DefaultQuery("days", "30")
+			days, err := strconv.Atoi(daysStr)
+			if err != nil {
+				// 如果无法解析天数，默认使用30天
+				days = 30
+			}
+
+			// 获取限制参数，默认10个
+			limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+			if limit > 50 {
+				limit = 50 // 限制最大数量
+			}
+
+			// 获取按播放次数统计的热门专辑
+			albums, err := trackService.GetTopAlbumsByPlayCount(ctx, days, limit)
+			if err != nil {
+				log.Error(ctx, "Failed to get top albums by play count", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top albums by play count"})
+				return
+			}
+
+			c.JSON(http.StatusOK, albums)
+		},
+	)
+
 	// 获取未同步到Last.fm的播放记录（分页）
 	r.GET(
 		"/api/unscrobbled-records", func(c *gin.Context) {

@@ -51,6 +51,8 @@ type TrackService interface {
 	SetTrackFavorite(ctx context.Context, artist, album, track, source string, isFavorite bool) (
 		appleMusicFav bool, lastFmFav bool, err error,
 	)
+	// GetTopAlbumsByPlayCount 获取按播放次数统计的热门专辑
+	GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) ([]*model.TopAlbum, error)
 }
 
 // TrackServiceImpl 实现TrackService接口
@@ -133,6 +135,11 @@ func (s *TrackServiceImpl) GetTrackPlayCountsByPeriod(
 // GetPlayCountsBySource 获取按来源统计的播放次数
 func (s *TrackServiceImpl) GetPlayCountsBySource(ctx context.Context) (map[string]int64, error) {
 	return model.GetPlayCountsBySource(ctx)
+}
+
+// GetTopAlbumsByPlayCount 获取按播放次数统计的热门专辑
+func (s *TrackServiceImpl) GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) ([]*model.TopAlbum, error) {
+	return model.GetTopAlbumsByPlayCount(ctx, days, limit)
 }
 
 // GetUnscrobbledRecordsWithPagination 分页获取未同步到Last.fm的播放记录

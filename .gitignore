@@ -6,5 +6,6 @@
 /internal/scrobbler/.logs/
 /.logs/
 /.storage/
+/.tmp/
 /shell/bin/nowplaying-cli-mac
 /venv/

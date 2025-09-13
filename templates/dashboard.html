@@ -749,21 +749,6 @@
 
       <!-- 图表区域 -->
       <div class="charts-container">
-        <!-- 播放趋势图 -->
-        <div class="chart-card">
-          <div class="card-header">
-            <div class="card-title">播放趋势</div>
-            <div class="time-filters">
-              <div class="time-filter active" data-range="7">7天</div>
-              <div class="time-filter" data-range="30">30天</div>
-              <div class="time-filter" data-range="90">90天</div>
-            </div>
-          </div>
-          <div class="chart-container">
-            <canvas id="trendChart"></canvas>
-          </div>
-        </div>
-
         <!-- 热门艺术家 -->
         <div class="chart-card">
           <div class="card-header">
@@ -775,6 +760,37 @@
           </div>
           <div class="chart-container">
             <canvas id="artistChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 热门专辑 -->
+        <div class="chart-card">
+          <div class="card-header">
+            <div class="card-title">热门专辑</div>
+            <div class="time-filters">
+              <div class="time-filter active" data-days="7">7天</div>
+              <div class="time-filter" data-days="30">30天</div>
+              <div class="time-filter" data-days="90">90天</div>
+              <div class="time-filter" data-days="365">365天</div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="albumChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 播放趋势图 -->
+        <div class="chart-card" style="grid-column: span 2">
+          <div class="card-header">
+            <div class="card-title">播放趋势</div>
+            <div class="time-filters">
+              <div class="time-filter active" data-range="7">7天</div>
+              <div class="time-filter" data-range="30">30天</div>
+              <div class="time-filter" data-range="90">90天</div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="trendChart"></canvas>
           </div>
         </div>
       </div>
@@ -1312,6 +1328,18 @@
                     grid: {
                       display: false,
                     },
+                    ticks: {
+                      autoSkip: false,
+                      maxRotation: 45, // 恢复斜体显示
+                      callback: function (value) {
+                        // 截断过长的标签文本
+                        const label = this.getLabelForValue(value);
+                        if (label && label.length > 15) {
+                          return label.substring(0, 15) + "...";
+                        }
+                        return label;
+                      },
+                    },
                   },
                 },
               },
@@ -1381,29 +1409,77 @@
                   {
                     label: label,
                     data: counts,
+                    /* backgroundColor: [
+                            "rgba(52, 152, 219, 0.7)",
+                            "rgba(46, 204, 113, 0.7)",
+                            "rgba(231, 76, 60, 0.7)",
+                            "rgba(155, 89, 182, 0.7)",
+                            "rgba(241, 196, 15, 0.7)",
+                            "rgba(52, 152, 219, 0.7)",
+                            "rgba(46, 204, 113, 0.7)",
+                            "rgba(231, 76, 60, 0.7)",
+                            "rgba(155, 89, 182, 0.7)",
+                            "rgba(241, 196, 15, 0.7)",
+                          ],
+                          borderColor: [
+                            "rgba(52, 152, 219, 1)",
+                            "rgba(46, 204, 113, 1)",
+                            "rgba(231, 76, 60, 1)",
+                            "rgba(155, 89, 182, 1)",
+                            "rgba(241, 196, 15, 1)",
+                            "rgba(52, 152, 219, 1)",
+                            "rgba(46, 204, 113, 1)",
+                            "rgba(231, 76, 60, 1)",
+                            "rgba(155, 89, 182, 1)",
+                            "rgba(241, 196, 15, 1)",
+                          ], */
+                    /* backgroundColor: [
+                            "rgba(231, 76, 60, 0.9)", // 1 红
+                            "rgba(230, 126, 34, 0.9)", // 2 橙
+                            "rgba(241, 196, 15, 0.9)", // 3 黄
+                            "rgba(46, 204, 113, 0.85)", // 4 绿
+                            "rgba(0, 90, 140, 0.8)", // 5 靛蓝
+                            "rgba(52, 152, 219, 0.8)", // 6 蓝
+                            "rgba(110, 40, 140, 0.65)", // 7 深紫
+                            "rgba(165, 95, 190, 0.7)", // 8 紫
+                            "rgba(127, 140, 141, 0.6)", // 9 灰蓝
+                            "rgba(189, 195, 199, 0.55)", // 10 浅灰收尾
+                          ],
+                          borderColor: [
+                            "rgba(231, 76, 60, 1)",
+                            "rgba(230, 126, 34, 1)",
+                            "rgba(241, 196, 15, 1)",
+                            "rgba(46, 204, 113, 1)",
+                            "rgba(52, 152, 219, 1)",
+                            "rgba(52, 73, 94, 1)",
+                            "rgba(142, 68, 173, 1)",
+                            "rgba(155, 89, 182, 1)",
+                            "rgba(127, 140, 141, 1)",
+                            "rgba(189, 195, 199, 1)",
+                          ], */
                     backgroundColor: [
-                      "rgba(52, 152, 219, 0.7)",
-                      "rgba(46, 204, 113, 0.7)",
-                      "rgba(231, 76, 60, 0.7)",
-                      "rgba(155, 89, 182, 0.7)",
-                      "rgba(241, 196, 15, 0.7)",
-                      "rgba(52, 152, 219, 0.7)",
-                      "rgba(46, 204, 113, 0.7)",
-                      "rgba(231, 76, 60, 0.7)",
-                      "rgba(155, 89, 182, 0.7)",
-                      "rgba(241, 196, 15, 0.7)",
+                      "rgba(231, 76, 60, 0.9)", // 1 红
+                      "rgba(230, 126, 34, 0.9)", // 2 橙
+                      "rgba(241, 196, 15, 0.9)", // 3 黄
+                      "rgba(46, 204, 113, 0.85)", // 4 绿
+                      "rgba(0, 200, 200, 0.8)", // 5 青
+                      "rgba(52, 152, 219, 0.8)", // 6 蓝
+                      "rgba(0, 90, 140, 0.75)", // 7 深蓝/靛蓝
+                      "rgba(142, 68, 173, 0.7)", // 8 紫
+                      "rgba(127, 140, 141, 0.65)", // 9 灰蓝
+                      "rgba(189, 195, 199, 0.6)", // 10 浅灰收尾
                     ],
                     borderColor: [
-                      "rgba(52, 152, 219, 1)",
-                      "rgba(46, 204, 113, 1)",
                       "rgba(231, 76, 60, 1)",
-                      "rgba(155, 89, 182, 1)",
+                      "rgba(230, 126, 34, 1)",
                       "rgba(241, 196, 15, 1)",
-                      "rgba(52, 152, 219, 1)",
                       "rgba(46, 204, 113, 1)",
-                      "rgba(231, 76, 60, 1)",
-                      "rgba(155, 89, 182, 1)",
-                      "rgba(241, 196, 15, 1)",
+                      "rgba(0, 200, 200, 1)",
+                      "rgba(52, 152, 219, 1)",
+                      "rgba(0, 90, 140, 1)",
+                      "rgba(142, 68, 173, 1)",
+                      "rgba(127, 140, 141, 1)",
+                      "rgba(189, 195, 199, 1)",
                     ],
                     borderWidth: 1,
                   },
@@ -1428,6 +1504,18 @@
                     grid: {
                       display: false,
                     },
+                    ticks: {
+                      autoSkip: false,
+                      maxRotation: 45, // 恢复斜体显示
+                      callback: function (value) {
+                        // 截断过长的标签文本
+                        const label = this.getLabelForValue(value);
+                        if (label && label.length > 15) {
+                          return label.substring(0, 15) + "...";
+                        }
+                        return label;
+                      },
+                    },
                   },
                 },
               },
@@ -1435,6 +1523,138 @@
           })
           .catch((error) => {
             console.error("获取艺术家数据失败:", error);
+            // 移除加载状态
+            const loadingElement = chartContainer.querySelector(".loading");
+            if (loadingElement) {
+              loadingElement.remove();
+            }
+            chartContainer.innerHTML =
+              '<div class="error">加载失败: ' + error.message + "</div>";
+          });
+      }
+
+      // 初始化热门专辑图表
+      function initAlbumChart(days = 7) {
+        const ctx = document.getElementById("albumChart").getContext("2d");
+
+        // 显示加载状态
+        const chartContainer =
+          document.querySelector("#albumChart").parentElement;
+        chartContainer.innerHTML = '<div class="loading">加载中...</div>';
+
+        // 重新创建canvas元素
+        const canvas = document.createElement("canvas");
+        canvas.id = "albumChart";
+        chartContainer.appendChild(canvas);
+        const newCtx = canvas.getContext("2d");
+
+        // 从后端获取数据
+        fetch(`/api/dashboard/top-albums?days=${days}&limit=10`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("网络响应错误");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            // 移除加载状态
+            const loadingElement = chartContainer.querySelector(".loading");
+            if (loadingElement) {
+              loadingElement.remove();
+            }
+
+            // 处理数据
+            const albums = data.map((item) => item.album);
+            const artists = data.map((item) => item.artist);
+            const counts = data.map((item) => item.play_count);
+
+            new Chart(newCtx, {
+              type: "bar",
+              data: {
+                labels: albums,
+                datasets: [
+                  {
+                    label: "播放次数",
+                    data: counts,
+                    backgroundColor: [
+                      "rgba(231, 76, 60, 0.9)", // 1 红
+                      "rgba(230, 126, 34, 0.9)", // 2 橙
+                      "rgba(241, 196, 15, 0.9)", // 3 黄
+                      "rgba(46, 204, 113, 0.85)", // 4 绿
+                      "rgba(0, 200, 200, 0.8)", // 5 青
+                      "rgba(52, 152, 219, 0.8)", // 6 蓝
+                      "rgba(0, 90, 140, 0.75)", // 7 深蓝/靛蓝
+                      "rgba(142, 68, 173, 0.7)", // 8 紫
+                      "rgba(127, 140, 141, 0.65)", // 9 灰蓝
+                      "rgba(189, 195, 199, 0.6)", // 10 浅灰收尾
+                    ],
+                    borderColor: [
+                      "rgba(231, 76, 60, 1)",
+                      "rgba(230, 126, 34, 1)",
+                      "rgba(241, 196, 15, 1)",
+                      "rgba(46, 204, 113, 1)",
+                      "rgba(0, 200, 200, 1)",
+                      "rgba(52, 152, 219, 1)",
+                      "rgba(0, 90, 140, 1)",
+                      "rgba(142, 68, 173, 1)",
+                      "rgba(127, 140, 141, 1)",
+                      "rgba(189, 195, 199, 1)",
+                    ],
+                    borderWidth: 1,
+                  },
+                ],
+              },
+              options: {
+                indexAxis: "y", // 👈 水平条形图
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    callbacks: {
+                      // 移除默认 label（第一行）
+                      /*   label: function () {
+                              return null;
+                            }, */
+                      // 用 title 回调显示专辑名（第一行）
+                      title: function (ctx) {
+                        const index = ctx[0].dataIndex; // tooltipItems 数组的第 0 个元素
+                        const artist = artists[index]; // 拿到对应作者
+                        return "《" + ctx[0].label + `》- ${artist}`; // 专辑名
+                      },
+                      // 用 afterLabel 回调显示作者 + 播放次数（第二行）
+                      /* afterLabel: function (ctx) {
+                              const artist = artists[ctx.dataIndex];
+                              //const count = counts[ctx.dataIndex];
+                              return `${artist}`;
+                            }, */
+                    },
+                  },
+                },
+                scales: {
+                  x: {
+                    beginAtZero: true,
+                    grid: { color: "rgba(0, 0, 0, 0.05)" },
+                  },
+                  y: {
+                    grid: { display: false },
+                    ticks: {
+                      autoSkip: false,
+                      callback: function (value) {
+                        const label = this.getLabelForValue(value);
+                        if (label && label.length > 15) {
+                          return label.substring(0, 15) + "...";
+                        }
+                        return label;
+                      },
+                    },
+                  },
+                },
+              },
+            });
+          })
+          .catch((error) => {
+            console.error("获取专辑数据失败:", error);
             // 移除加载状态
             const loadingElement = chartContainer.querySelector(".loading");
             if (loadingElement) {
@@ -1503,20 +1723,22 @@
               }
 
               rankingItem.innerHTML = `
-                            <div class="rank-number rank-other">${
-                              index + 1
-                            }</div>
-                            <div class="track-info">
-                                <div class="track-title">${item.track}</div>
-                                <div class="track-artist">${item.artist} - ${
-                item.album
-              }</div>
-                            </div>
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; margin-left: 10px;">
-                              <div class="play-source ${sourceClass}">${sourceText}</div>
-                              <div class="play-count">${timeString}</div>
-                            </div>
-                        `;
+                                  <div class="rank-number rank-other">${
+                                    index + 1
+                                  }</div>
+                                  <div class="track-info">
+                                      <div class="track-title">${
+                                        item.track
+                                      }</div>
+                                      <div class="track-artist">${
+                                        item.artist
+                                      } - ${item.album}</div>
+                                  </div>
+                                  <div style="display: flex; flex-direction: column; align-items: flex-end; margin-left: 10px;">
+                                    <div class="play-source ${sourceClass}">${sourceText}</div>
+                                    <div class="play-count">${timeString}</div>
+                                  </div>
+                              `;
 
               recentPlaysList.appendChild(rankingItem);
             });
@@ -1589,20 +1811,22 @@
               }
 
               rankingItem.innerHTML = `
-                            <div class="rank-number rank-other">${
-                              index + 1
-                            }</div>
-                            <div class="track-info">
-                                <div class="track-title">${item.track}</div>
-                                <div class="track-artist">${item.artist} - ${
-                item.album
-              }</div>
-                            </div>
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; margin-left: 10px;">
-                              <div class="play-source ${sourceClass}">${sourceText}</div>
-                              <div class="play-count">${timeString}</div>
-                            </div>
-                        `;
+                                  <div class="rank-number rank-other">${
+                                    index + 1
+                                  }</div>
+                                  <div class="track-info">
+                                      <div class="track-title">${
+                                        item.track
+                                      }</div>
+                                      <div class="track-artist">${
+                                        item.artist
+                                      } - ${item.album}</div>
+                                  </div>
+                                  <div style="display: flex; flex-direction: column; align-items: flex-end; margin-left: 10px;">
+                                    <div class="play-source ${sourceClass}">${sourceText}</div>
+                                    <div class="play-count">${timeString}</div>
+                                  </div>
+                              `;
 
               recentPlaysList.appendChild(rankingItem);
             });
@@ -1662,13 +1886,13 @@
               else if (rank === 3) rankClass = "rank-3";
 
               rankingItem.innerHTML = `
-                            <div class="rank-number ${rankClass}">${rank}</div>
-                            <div class="track-info">
-                                <div class="track-title">${item.track}</div>
-                                <div class="track-artist">${item.artist} - ${item.album}</div>
-                            </div>
-                            <div class="play-count">${item.play_count} 次</div>
-                        `;
+                                  <div class="rank-number ${rankClass}">${rank}</div>
+                                  <div class="track-info">
+                                      <div class="track-title">${item.track}</div>
+                                      <div class="track-artist">${item.artist} - ${item.album}</div>
+                                  </div>
+                                  <div class="play-count">${item.play_count} 次</div>
+                              `;
 
               rankingList.appendChild(rankingItem);
             });
@@ -1948,6 +2172,7 @@
         initSourceChart(); // 初始化播放来源扇形图
         initTrendChart(7); // 默认加载7天数据
         initArtistChart("plays"); // 默认按播放次数排序
+        initAlbumChart(30); // 默认加载30天数据
         initRanking("all"); // 默认总排行
         initRecentPlays(); // 初始化最近播放列表
 
@@ -1982,6 +2207,17 @@
             60000
           )
         ); // 每5秒更新艺术家图表
+        dashboardUpdater.addTimer(
+          createAutoUpdater(
+            () =>
+              initAlbumChart(
+                document
+                  .querySelector(".time-filter.active[data-days]")
+                  .getAttribute("data-days") || 30
+              ),
+            60000
+          )
+        ); // 每5秒更新专辑图表
         dashboardUpdater.addTimer(
           createAutoUpdater(
             () =>
@@ -2024,6 +2260,10 @@
               // 更新艺术家图表
               const type = this.getAttribute("data-type");
               initArtistChart(type);
+            } else if (filterType.includes("热门专辑")) {
+              // 更新专辑图表
+              const days = this.getAttribute("data-days");
+              initAlbumChart(days);
             } else if (filterType.includes("播放排行榜")) {
               // 更新排行榜
               const ranking = this.getAttribute("data-ranking");

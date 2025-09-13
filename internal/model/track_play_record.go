@@ -133,3 +133,40 @@ func GetPlayCountsBySource(ctx context.Context) (map[string]int64, error) {
 
 	return sourceCounts, nil
 }
+
+// GetTopAlbumsByPlayCount 获取按播放次数统计的热门专辑
+type TopAlbum struct {
+	Album     string `json:"album"`
+	Artist    string `json:"artist"`
+	PlayCount int    `json:"play_count"`
+}
+
+// GetTopAlbumsByPlayCount 获取按播放次数统计的热门专辑
+func GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) ([]*TopAlbum, error) {
+	var result []*TopAlbum
+	
+	// 计算时间范围
+	var startTime time.Time
+	if days > 0 {
+		startTime = time.Now().AddDate(0, 0, -days)
+	}
+
+	// 构建查询
+	query := GetDB().WithContext(ctx).Model(&TrackPlayRecord{})
+	
+	// 如果指定了时间范围，则添加时间条件
+	if days > 0 {
+		query = query.Where("play_time >= ?", startTime)
+	}
+	
+	err := query.Select("album, MIN(artist) as artist, COUNT(album) as play_count").
+		Group("album").
+		Order("play_count DESC").
+		Limit(limit).
+		Find(&result).Error
+		
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
