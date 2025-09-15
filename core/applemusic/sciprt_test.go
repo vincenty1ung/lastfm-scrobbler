@@ -6,7 +6,49 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/vincenty1ung/lastfm-scrobbler/config"
+	alog "github.com/vincenty1ung/lastfm-scrobbler/core/log"
 )
+
+func init() {
+	c := make(chan struct{})
+	// 尝试不同的配置文件路径
+	// core/lastfm/lastfm.go
+	configPaths := []string{"../../config/config_bak.yaml"}
+	configLoaded := false
+	for _, path := range configPaths {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// 忽略配置加载失败的情况
+				}
+			}()
+			config.InitConfig(path)
+			configLoaded = true
+		}()
+		if configLoaded {
+			break
+		}
+	}
+	if configLoaded {
+		_ = alog.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
+		// 只有在配置加载成功时才初始化API
+		/*if config.ConfigObj.Lastfm.ApiKey != "" {
+			lastfm.InitLastfmApi(
+				context.Background(),
+				config.ConfigObj.Lastfm.ApiKey, config.ConfigObj.Lastfm.SharedSecret, "", true,
+				config.ConfigObj.Lastfm.UserUsername, config.ConfigObj.Lastfm.UserPassword,
+			)
+		}*/
+	}
+
+	_ = alog.LogInit("../../"+config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, make(<-chan struct{}))
+	/*err := model.InitDB("../../"+config.ConfigObj.Database.Path, logger)
+	if err != nil {
+		panic(err)
+	}*/
+}
 
 func TestIsRunning(t *testing.T) {
 	ctx := context.Background()

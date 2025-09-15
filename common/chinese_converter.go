@@ -1,4 +1,4 @@
-package scrobbler
+package common
 
 import (
 	"strings"
@@ -24,10 +24,7 @@ func init() {
 	}
 }
 
-type BaseWrapper struct {
-}
-
-func (m BaseWrapper) conversionSimplified(target string) string {
+func ConversionSimplifiedFx(target string) string {
 	// 检查字符串是否为空或只包含空白字符
 	if strings.TrimSpace(target) == "" {
 		return target
@@ -61,8 +58,8 @@ func (m BaseWrapper) conversionSimplified(target string) string {
 	return simplified
 }
 
-// isChineseSimplified 检查字符串是否只包含简体字
-func isChineseSimplified(s string) bool {
+// IsExistsChineseSimplified 检查字符串是否存在简体字
+func IsExistsChineseSimplified(s string) bool {
 	// 常见的简体字Unicode范围
 	simplifiedRanges := [][2]rune{
 		{0x4E00, 0x9FA5}, // 基本汉字
@@ -82,10 +79,10 @@ func isChineseSimplified(s string) bool {
 				}
 			}
 			// 如果不在简体字范围内，则不是简体字符串
-			if !inSimplifiedRange {
-				return false
+			if inSimplifiedRange {
+				return true
 			}
 		}
 	}
-	return true
+	return false
 }

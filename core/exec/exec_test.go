@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -17,7 +18,11 @@ func init() {
 }
 
 func TestExecExiftoolHandl(t *testing.T) {
-	info, err := BuildExiftoolHandle("file:///Users/vincent/Documents/多媒体/音乐/CD/许巍/此时此刻/02 爱情.m4a")
+	ctx := context.Background()
+	info, err := BuildExiftoolHandle(
+		ctx,
+		"/Users/vincent/Music/本地音乐/CD/寸铁/近人可讀/01 若你心年輕.flac",
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,21 +31,50 @@ func TestExecExiftoolHandl(t *testing.T) {
 	fmt.Println(info.GetTrackNumber())
 	fmt.Println(info.GetArtists())
 	fmt.Println(info.GetArtist())
-	fmt.Println(info.GetAlbumartist())
+	fmt.Println(info.GetUniqueID())
+	fmt.Println(info.GetTitle())
+	fmt.Println(info.GetSource())
+	fmt.Println(info.GetComposer())
+	fmt.Println(info.GetGenre())
+	fmt.Println(info.GetDuration())
+	fmt.Println(info.GetReleaseDate())
 	fmt.Println("==============================")
-	info, err = BuildExiftoolHandle("file:///Users/vincent/Documents/多媒体/音乐/CD/寸铁/aLIVE IN CHINA 2017-2023/3-01 2021.10.20 濟南 雀躍之地.flac")
+	info, err = BuildExiftoolHandle(
+		ctx, "/Users/vincent/Documents/多媒体/音乐/CD/Chinese Football/Chinese Football/02 守门员.m4a",
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// fmt.Println(info)
 	fmt.Println(info.GetMusicBrainzTrackId())
 	fmt.Println(info.GetTrackNumber())
-	fmt.Println(info.GetTrackNumber())
-	fmt.Println(info.GetArtist())
 	fmt.Println(info.GetArtists())
-	fmt.Println(info.GetAlbumartist())
+	fmt.Println(info.GetArtist())
+	fmt.Println(info.GetUniqueID())
+	fmt.Println(info.GetTitle())
+	fmt.Println(info.GetSource())
+	fmt.Println(info.GetComposer())
+	fmt.Println(info.GetGenre())
+	fmt.Println(info.GetDuration())
+	fmt.Println(info.GetReleaseDate())
 	fmt.Println("==============================")
-	info, err = BuildExiftoolHandle("file:///Users/vincent/Documents/多媒体/音乐/CD/李志/梵高先生/05 广场.wav")
+	info, err = BuildExiftoolHandle(ctx, "/Users/vincent/Documents/多媒体/音乐/CD/李志/梵高先生/05 广场.wav")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// fmt.Println(info)
+	fmt.Println(info.GetMusicBrainzTrackId())
+	fmt.Println(info.GetTrackNumber())
+	fmt.Println(info.GetArtists())
+	fmt.Println(info.GetArtist())
+	fmt.Println(info.GetUniqueID())
+	fmt.Println(info.GetTitle())
+	fmt.Println(info.GetSource())
+	fmt.Println(info.GetComposer())
+	fmt.Println(info.GetGenre())
+	fmt.Println(info.GetDuration())
+	fmt.Println(info.GetReleaseDate())
+	info, err = BuildExiftoolHandle(nil, "/Users/vincent/Documents/多媒体/音乐/CD/万能青年旅店/张洲/01 张洲.wav")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,22 +83,12 @@ func TestExecExiftoolHandl(t *testing.T) {
 	fmt.Println(info.GetTrackNumber())
 	fmt.Println(info.GetArtist())
 	fmt.Println(info.GetArtists())
-	fmt.Println(info.GetAlbumartist())
-	info, err = BuildExiftoolHandle("file:///Users/vincent/Documents/多媒体/音乐/CD/万能青年旅店/张洲/01 张洲.wav")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// fmt.Println(info)
-	fmt.Println(info.GetMusicBrainzTrackId())
-	fmt.Println(info.GetTrackNumber())
-	fmt.Println(info.GetArtist())
-	fmt.Println(info.GetArtists())
-	fmt.Println(info.GetAlbumartist())
+	fmt.Println(info.GetBundleID())
 
 }
 
 func TestName(t *testing.T) {
-	output, err := runCommand("nowplaying-cli", "get", "title", "album", "artist")
+	output, err := runCommand(nil, "nowplaying-cli", "get", "title", "album", "artist")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +129,6 @@ func TestWavInfoHandle(t *testing.T) {
 	fmt.Println(handle.GetTitle())
 	fmt.Println(handle.GetArtists())
 	fmt.Println(handle.GetArtist())
-	fmt.Println(handle.GetAlbumartist())
 	fmt.Println(handle.GetTrackNumber())
 	fmt.Println(handle.GetMusicBrainzTrackId())
 	handle, err = BuildWavInfoHandle("file:///Users/vincent/Documents/多媒体/音乐/CD/万能青年旅店/张洲/01 张洲.wav")
@@ -115,7 +138,6 @@ func TestWavInfoHandle(t *testing.T) {
 	fmt.Println(handle.GetTitle())
 	fmt.Println(handle.GetArtists())
 	fmt.Println(handle.GetArtist())
-	fmt.Println(handle.GetAlbumartist())
 	fmt.Println(handle.GetTrackNumber())
 	fmt.Println(handle.GetMusicBrainzTrackId())
 }
@@ -144,7 +166,7 @@ func TestNam1(t *testing.T) {
 }
 
 func TestGetMRMediaNowPlaying(t *testing.T) {
-	nowPlaying, err := GetMRMediaNowPlaying()
+	nowPlaying, err := GetMRMediaNowPlayingCli(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

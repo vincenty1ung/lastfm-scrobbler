@@ -33,7 +33,7 @@ func syncRecords(cmd *cobra.Command, args []string) error {
 
 	limit, _ := cmd.Flags().GetInt("limit")
 
-	// Get unscrobbled records
+	// GetC2E unscrobbled records
 	records, err := model.GetUnscrobbledRecords(context.Background(), limit)
 	if err != nil {
 		return fmt.Errorf("failed to get unscrobbled records: %w", err)

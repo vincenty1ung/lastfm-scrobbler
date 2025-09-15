@@ -9,10 +9,11 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/vincenty1ung/lastfm-scrobbler/core/applesciprt"
-	alog "github.com/vincenty1ung/lastfm-scrobbler/core/log"
-
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/applesciprt"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/cache"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/exec"
+	alog "github.com/vincenty1ung/lastfm-scrobbler/core/log"
 )
 
 type (
@@ -25,6 +26,8 @@ type (
 		Position   float64
 		Url        string
 		AirfoiLogo string
+
+		MataDataHandle exec.MataDataHandle
 	}
 	TrackInfo struct {
 		TrackBase
@@ -122,5 +125,7 @@ func GetNowPlayingTrackInfo(ctx context.Context) *TrackInfo {
 			// info.AirfoiLogo = s
 		}
 	}
+
+	info.MataDataHandle = cache.FindMataDataHandle(context.Background(), info.Url)
 	return info
 }

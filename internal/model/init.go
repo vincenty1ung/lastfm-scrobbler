@@ -42,5 +42,11 @@ func InitDB(dataSourceName string, l *zap.Logger) error {
 		return err
 	}
 
+	// Auto migrate the schema for Genre
+	err = GlobalDB.AutoMigrate(&Genre{})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

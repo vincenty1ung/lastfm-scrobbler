@@ -44,3 +44,28 @@ func ValidateTrackInfo(ctx context.Context, artist, album, track string) error {
 
 	return nil
 }
+
+// 去掉末尾“乐”字
+func NormalizeChineseGenre(genre string) string {
+	if strings.HasSuffix(genre, "音乐") {
+		return genre
+	}
+	if strings.HasSuffix(genre, "乐") {
+		return strings.TrimSuffix(genre, "乐")
+	}
+	return genre
+}
+
+// 自定义适配
+func GenreCustomFit(genre string) string {
+	switch genre {
+	case "Rock & Roll":
+		return "Rock And Roll"
+	case "Singer/Songwriter":
+		return "Singer-Songwriter"
+	case "R&B/Soul":
+		return "R&B-Soul"
+		// todo add
+	}
+	return genre
+}

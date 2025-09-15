@@ -25,6 +25,17 @@ type PlayerInfoHandler interface {
 	GetPosition() float64
 	GetDuration() int64
 	GetUrl() string // Audirvana 特有
+
+	// 新增的方法以支持Track模型的更多字段
+	GetAlbumArtist() string   // 专辑艺术家
+	GetTrackNumber() int64    // 曲目编号
+	GetGenre() string         // 流派
+	GetComposer() string      // 作曲家
+	GetReleaseDate() string   // 发布日期
+	GetMusicBrainzID() string // MusicBrainz ID
+	GetSource() string        // 数据来源
+	GetBundleID() string      // 应用标识符
+	GetUniqueID() string      // 唯一标识符
 }
 
 // PlayerController 定义播放器控制接口
@@ -217,7 +228,14 @@ func (b *BasePlayerChecker) processPlayingTrack(ctx context.Context, playerInfo 
 			appleMusicFav = favorite
 			if favorite {
 				err := b.trackService.SetAppleMusicFavorite(
-					ctx, getTrack.Artist, getTrack.Album, getTrack.Track, true,
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        getTrack.Artist,
+						Album:         getTrack.Album,
+						Track:         getTrack.Track,
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
 				)
 				if err != nil {
 					log.Warn(
@@ -236,7 +254,14 @@ func (b *BasePlayerChecker) processPlayingTrack(ctx context.Context, playerInfo 
 				lastFmFav = favorite
 				if favorite {
 					err := b.trackService.SetLastFmFavorite(
-						ctx, getTrack.Artist, getTrack.Album, getTrack.Track, true,
+						model.SetFavoriteParams{
+							Ctx:           ctx,
+							Artist:        getTrack.Artist,
+							Album:         getTrack.Album,
+							Track:         getTrack.Track,
+							IsFavorite:    true,
+							TrackMetadata: model.TrackMetadata{},
+						},
 					)
 					if err != nil {
 						log.Warn(
@@ -254,14 +279,30 @@ func (b *BasePlayerChecker) processPlayingTrack(ctx context.Context, playerInfo 
 			appleMusicFav = favorite
 			if favorite {
 				err := b.trackService.SetAppleMusicFavorite(
-					ctx, playerInfo.GetArtist(), playerInfo.GetAlbum(), playerInfo.GetTitle(), true,
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        playerInfo.GetArtist(),
+						Album:         playerInfo.GetAlbum(),
+						Track:         playerInfo.GetTitle(),
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
 				)
 				if err != nil {
 					log.Warn(
 						ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
 					)
 				}
-				_ = b.trackService.SetLastFmFavorite(ctx, playerInfo.GetArtist(), playerInfo.GetAlbum(), playerInfo.GetTitle(), true)
+				_ = b.trackService.SetLastFmFavorite(
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        playerInfo.GetArtist(),
+						Album:         playerInfo.GetAlbum(),
+						Track:         playerInfo.GetTitle(),
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
+				)
 			}
 		}
 	}
@@ -337,8 +378,31 @@ func (b *BasePlayerChecker) handleTrackScrobble(ctx context.Context, playerInfo 
 	}
 
 	// Update track play count
+	incrementTrackPlayCountParams := model.IncrementTrackPlayCountParams{
+		Ctx:    ctx,
+		Artist: playerInfo.GetArtist(),
+		Album:  playerInfo.GetAlbum(),
+		Track:  playerInfo.GetTitle(),
+		TrackMetadata: model.TrackMetadata{
+			AlbumArtist:   playerInfo.GetAlbumArtist(),
+			TrackNumber:   playerInfo.GetTrackNumber(),
+			Duration:      playerInfo.GetDuration(),
+			Genre:         playerInfo.GetGenre(),
+			Composer:      playerInfo.GetComposer(),
+			ReleaseDate:   playerInfo.GetReleaseDate(),
+			MusicBrainzID: playerInfo.GetMusicBrainzID(),
+			Source:        playerInfo.GetUrl(), // 优先地址
+			BundleID:      playerInfo.GetBundleID(),
+			UniqueID:      playerInfo.GetUniqueID(),
+		},
+	}
+	if incrementTrackPlayCountParams.TrackMetadata.Source == "" {
+		incrementTrackPlayCountParams.TrackMetadata.Source = playerInfo.GetSource()
+	} else {
+		incrementTrackPlayCountParams.TrackMetadata.BundleID = playerInfo.GetSource()
+	}
 	if err := b.trackService.IncrementTrackPlayCount(
-		ctx, record.Artist, record.Album, record.Track,
+		incrementTrackPlayCountParams,
 	); err != nil {
 		log.Warn(ctx, string(b.source)+" Failed to increment track play count", zap.Error(err))
 	}
@@ -351,7 +415,25 @@ func (b *BasePlayerChecker) handleTrackScrobble(ctx context.Context, playerInfo 
 					favorite := b.controller.IsFavorite(ctx)
 					if favorite {
 						err := b.trackService.SetAppleMusicFavorite(
-							ctx, getTrack.Artist, getTrack.Album, getTrack.Track, true,
+							model.SetFavoriteParams{
+								Ctx:           ctx,
+								Artist:        getTrack.Artist,
+								Album:         getTrack.Album,
+								Track:         getTrack.Track,
+								IsFavorite:    true,
+								TrackMetadata: model.TrackMetadata{
+									// AlbumArtist:   playerInfo.GetAlbumArtist(),
+									// TrackNumber:   playerInfo.GetTrackNumber(),
+									// Duration:      playerInfo.GetDuration(),
+									// Genre:         playerInfo.GetGenre(),
+									// Composer:      playerInfo.GetComposer(),
+									// ReleaseDate:   playerInfo.GetReleaseDate(),
+									// MusicBrainzID: playerInfo.GetMusicBrainzID(),
+									// Source:        playerInfo.GetUrl(),
+									// BundleID:      playerInfo.GetBundleID(),
+									// UniqueID:      playerInfo.GetUniqueID(),
+								},
+							},
 						)
 						if err != nil {
 							log.Warn(

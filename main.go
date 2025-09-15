@@ -13,6 +13,7 @@ import (
 	"github.com/vincenty1ung/lastfm-scrobbler/config"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/log"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/telemetry"
+	"github.com/vincenty1ung/lastfm-scrobbler/internal/cache"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/scrobbler"
 )
@@ -65,17 +66,14 @@ func initServer() error {
 	if err := telemetry.Init(config.ConfigObj.Telemetry); err != nil {
 		return fmt.Errorf("failed to initialize telemetry: %w", err)
 	}
-	defer func(ctx context.Context) {
-		err := telemetry.Shutdown(ctx)
-		if err != nil {
-			panic(err)
-		}
-	}(context.Background())
 
 	// Initialize database
 	if err := model.InitDB(config.ConfigObj.Database.Path, logger); err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
+
+	// Initialize genre cache with refresh timer
+	cancelFuncCacheInitializeGenreCache := cache.InitializeGenreCache(ctx)
 
 	// Start scrobblerRun goroutine
 	go api.StartHTTPServer(ctx, config.ConfigObj.Telemetry.Name)
@@ -84,8 +82,16 @@ func initServer() error {
 	_ = scrobblerRun(c)
 
 	<-ctx.Done()
+
 	fmt.Println("system exiting")
-	close(c)
+	defer func() {
+		cancelFuncCacheInitializeGenreCache()
+		err := telemetry.Shutdown(context.Background())
+		if err != nil {
+			panic(err)
+		}
+		close(c)
+	}()
 	return nil
 }
 

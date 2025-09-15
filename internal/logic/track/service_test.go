@@ -67,7 +67,16 @@ func TestName(t *testing.T) {
 				log.Warn(ctx, "IsFavorite fail", zap.String("track", track.Track), zap.Error(err))
 			}
 			if favorite {
-				err := model.SetLastFmFavorite(ctx, track.Artist, track.Album, track.Track, true)
+				err := model.SetLastFmFavorite(model.SetFavoriteParams{
+	Ctx:        ctx,
+	Artist:     track.Artist,
+	Album:      track.Album,
+	Track:      track.Track,
+	IsFavorite: true,
+	TrackMetadata: model.TrackMetadata{
+		Source: track.Source,
+	},
+})
 				if err != nil {
 					panic(err)
 				}

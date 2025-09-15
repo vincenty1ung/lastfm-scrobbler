@@ -13,14 +13,14 @@ type TrackService interface {
 	GetTrackPlayCounts(ctx context.Context, limit, offset int) ([]*model.Track, error)
 	GetTrack(ctx context.Context, artist, album, track string) (*model.Track, error)
 	InsertTrackPlayRecord(ctx context.Context, record *model.TrackPlayRecord) error
-	IncrementTrackPlayCount(ctx context.Context, artist, album, track string) error
+	IncrementTrackPlayCount(params model.IncrementTrackPlayCountParams) error
 	GetTotalPlayCount(ctx context.Context) (int64, error)
 	GetTrackCounts(ctx context.Context) (int64, error)
 	GetArtistCounts(ctx context.Context) (int64, error)
 	GetAlbumCounts(ctx context.Context) (int64, error)
 	GetRecentPlayRecords(ctx context.Context, limit int) ([]*model.TrackPlayRecord, error)
 	// GetRecentPlayRecordsByDays 获取指定天数内的播放记录
-	GetRecentPlayRecordsByDays(ctx context.Context, days int) ([]*model.TrackPlayRecord, error)
+	GetRecentPlayRecordsByDays(ctx context.Context, days int) (map[string][]*model.TrackPlayRecord, error)
 	// GetTopArtistsByPlayCount 获取按播放次数统计的热门艺术家
 	GetTopArtistsByPlayCount(ctx context.Context, limit int) ([]map[string]interface{}, error)
 	// GetTopArtistsByTrackCount 获取按曲目数统计的热门艺术家
@@ -40,19 +40,26 @@ type TrackService interface {
 		successCount int, failedRecords []*model.TrackPlayRecord, err error,
 	)
 	// SetAppleMusicFavorite 设置Apple Music喜欢状态
-	SetAppleMusicFavorite(ctx context.Context, artist, album, track string, isFavorite bool) error
+	SetAppleMusicFavorite(params model.SetFavoriteParams) error
 	// SetLastFmFavorite 设置Last.fm喜欢状态
-	SetLastFmFavorite(ctx context.Context, artist, album, track string, isFavorite bool) error
+	SetLastFmFavorite(params model.SetFavoriteParams) error
 	// GetAppleMusicFavorite 获取Apple Music喜欢状态
 	GetAppleMusicFavorite(ctx context.Context, artist, album, track string) (bool, error)
 	// GetLastFmFavorite 获取Last.fm喜欢状态
 	GetLastFmFavorite(ctx context.Context, artist, album, track string) (bool, error)
 	// SetTrackFavorite 设置曲目喜欢状态
-	SetTrackFavorite(ctx context.Context, artist, album, track, source string, isFavorite bool) (
+	SetTrackFavorite(
+		ctx context.Context, artist, album, track, source string, isFavorite bool, metadata model.TrackMetadata,
+	) (
 		appleMusicFav bool, lastFmFav bool, err error,
 	)
 	// GetTopAlbumsByPlayCount 获取按播放次数统计的热门专辑
 	GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) ([]*model.TopAlbum, error)
+	// Genre related methods
+	GetAllGenres(ctx context.Context, limit, offset int) ([]*model.Genre, error)
+	GetGenreByName(ctx context.Context, name string) (*model.Genre, error)
+	GetGenreCount(ctx context.Context) (int64, error)
+	GetTopGenresByPlayCount(ctx context.Context, limit int) ([]*model.Genre, error)
 }
 
 // TrackServiceImpl 实现TrackService接口
@@ -81,8 +88,8 @@ func (s *TrackServiceImpl) InsertTrackPlayRecord(ctx context.Context, record *mo
 	return model.InsertTrackPlayRecord(ctx, record)
 }
 
-func (s *TrackServiceImpl) IncrementTrackPlayCount(ctx context.Context, artist, album, track string) error {
-	return model.IncrementTrackPlayCount(ctx, artist, album, track)
+func (s *TrackServiceImpl) IncrementTrackPlayCount(params model.IncrementTrackPlayCountParams) error {
+	return model.IncrementTrackPlayCount(params)
 }
 
 // GetTotalPlayCount 获取总播放次数
@@ -111,7 +118,9 @@ func (s *TrackServiceImpl) GetRecentPlayRecords(ctx context.Context, limit int) 
 }
 
 // GetRecentPlayRecordsByDays 获取指定天数内的播放记录
-func (s *TrackServiceImpl) GetRecentPlayRecordsByDays(ctx context.Context, days int) ([]*model.TrackPlayRecord, error) {
+func (s *TrackServiceImpl) GetRecentPlayRecordsByDays(
+	ctx context.Context, days int,
+) (map[string][]*model.TrackPlayRecord, error) {
 	return model.GetRecentPlayRecordsByDays(ctx, days)
 }
 
@@ -138,7 +147,9 @@ func (s *TrackServiceImpl) GetPlayCountsBySource(ctx context.Context) (map[strin
 }
 
 // GetTopAlbumsByPlayCount 获取按播放次数统计的热门专辑
-func (s *TrackServiceImpl) GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) ([]*model.TopAlbum, error) {
+func (s *TrackServiceImpl) GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) (
+	[]*model.TopAlbum, error,
+) {
 	return model.GetTopAlbumsByPlayCount(ctx, days, limit)
 }
 
@@ -210,22 +221,22 @@ func (s *TrackServiceImpl) SyncSelectedUnscrobbledRecords(ctx context.Context, i
 
 // SetAppleMusicFavorite 设置Apple Music喜欢状态
 func (s *TrackServiceImpl) SetAppleMusicFavorite(
-	ctx context.Context, artist, album, track string, isFavorite bool,
+	params model.SetFavoriteParams,
 ) error {
-	err := applemusic.SetFavorite(ctx, isFavorite)
+	err := applemusic.SetFavorite(params.Ctx, params.IsFavorite)
 	if err != nil {
 		return err
 	}
-	return model.SetAppleMusicFavorite(ctx, artist, album, track, isFavorite)
+	return model.SetAppleMusicFavorite(params)
 }
 
 // SetLastFmFavorite 设置Last.fm喜欢状态
-func (s *TrackServiceImpl) SetLastFmFavorite(ctx context.Context, artist, album, track string, isFavorite bool) error {
-	err := lastfm.SetFavorite(ctx, artist, track, isFavorite)
+func (s *TrackServiceImpl) SetLastFmFavorite(params model.SetFavoriteParams) error {
+	err := lastfm.SetFavorite(params.Ctx, params.Artist, params.Track, params.IsFavorite)
 	if err != nil {
 		return err
 	}
-	return model.SetLastFmFavorite(ctx, artist, album, track, isFavorite)
+	return model.SetLastFmFavorite(params)
 }
 
 // GetAppleMusicFavorite 获取Apple Music喜欢状态
@@ -240,17 +251,35 @@ func (s *TrackServiceImpl) GetLastFmFavorite(ctx context.Context, artist, album,
 
 // SetTrackFavorite 设置曲目喜欢状态
 func (s *TrackServiceImpl) SetTrackFavorite(
-	ctx context.Context, artist, album, track, source string, isFavorite bool,
+	ctx context.Context, artist, album, track, source string, isFavorite bool, metadata model.TrackMetadata,
 ) (appleMusicFav bool, lastFmFav bool, err error) {
 	// 对于Apple Music来源，同时更新Apple Music和Last.fm的喜欢状态
 	if source == "Apple Music" {
 		// 更新Apple Music喜欢状态
-		if err = s.SetAppleMusicFavorite(ctx, artist, album, track, isFavorite); err != nil {
+		if err = s.SetAppleMusicFavorite(
+			model.SetFavoriteParams{
+				Ctx:           ctx,
+				Artist:        artist,
+				Album:         album,
+				Track:         track,
+				IsFavorite:    isFavorite,
+				TrackMetadata: metadata,
+			},
+		); err != nil {
 			return false, false, err
 		}
 
 		// 更新Last.fm喜欢状态
-		if err = s.SetLastFmFavorite(ctx, artist, album, track, isFavorite); err != nil {
+		if err = s.SetLastFmFavorite(
+			model.SetFavoriteParams{
+				Ctx:           ctx,
+				Artist:        artist,
+				Album:         album,
+				Track:         track,
+				IsFavorite:    isFavorite,
+				TrackMetadata: metadata,
+			},
+		); err != nil {
 			return false, false, err
 		}
 
@@ -263,6 +292,35 @@ func (s *TrackServiceImpl) SetTrackFavorite(
 
 	// 对于其他来源，只更新数据库中的喜欢状态
 	// 这里可以根据需要扩展对其他来源的支持 adirvana roon 支持上报lastfm喜欢状态
-	_ = s.SetLastFmFavorite(ctx, artist, album, track, isFavorite)
+	_ = s.SetLastFmFavorite(
+		model.SetFavoriteParams{
+			Ctx:           ctx,
+			Artist:        artist,
+			Album:         album,
+			Track:         track,
+			IsFavorite:    isFavorite,
+			TrackMetadata: metadata,
+		},
+	)
 	return false, false, nil
+}
+
+// GetAllGenres 获取所有流派（分页）
+func (s *TrackServiceImpl) GetAllGenres(ctx context.Context, limit, offset int) ([]*model.Genre, error) {
+	return model.GetAllGenres(ctx, limit, offset)
+}
+
+// GetGenreByName 根据名称获取流派
+func (s *TrackServiceImpl) GetGenreByName(ctx context.Context, name string) (*model.Genre, error) {
+	return model.GetGenreByName(ctx, name)
+}
+
+// GetGenreCount 获取流派总数
+func (s *TrackServiceImpl) GetGenreCount(ctx context.Context) (int64, error) {
+	return model.GetGenreCount(ctx)
+}
+
+// GetTopGenresByPlayCount 获取按播放次数排序的流派
+func (s *TrackServiceImpl) GetTopGenresByPlayCount(ctx context.Context, limit int) ([]*model.Genre, error) {
+	return model.GetTopGenresByPlayCount(ctx, limit)
 }

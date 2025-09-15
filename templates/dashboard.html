@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>音乐播放统计系统 - 仪表板</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
       :root {
         --primary-color: #3498db;
@@ -93,46 +94,48 @@
       .stats-container {
         display: flex;
         flex-wrap: wrap;
-        gap: 20px;
-        margin-bottom: 30px;
+        gap: 15px;
+        margin-bottom: 20px;
       }
 
       .stat-card {
         background-color: var(--card-bg);
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        padding: 15px;
         display: flex;
         flex-direction: column;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
+        min-width: 150px;
+        flex: 1;
       }
 
       .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       }
 
       .stat-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
       }
 
       .stat-title {
-        font-size: 1rem;
+        font-size: 0.9rem;
         color: var(--text-secondary);
         font-weight: 500;
       }
 
       .stat-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 12px;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
+        font-size: 1.2rem;
       }
 
       .icon-1 {
@@ -153,13 +156,13 @@
       }
 
       .stat-value {
-        font-size: 2.2rem;
+        font-size: 1.8rem;
         font-weight: 700;
-        margin-bottom: 5px;
+        margin-bottom: 3px;
       }
 
       .stat-change {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         font-weight: 500;
       }
 
@@ -696,7 +699,7 @@
 
       <!-- 统计卡片 -->
       <div class="stats-container">
-        <div class="stat-card" style="flex: 1; min-width: 200px">
+        <div class="stat-card">
           <div class="stat-header">
             <div class="stat-title">总播放次数</div>
             <div class="stat-icon icon-1">▶️</div>
@@ -705,7 +708,7 @@
           <div class="stat-change positive">↑ 12% 本月</div>
         </div>
 
-        <div class="stat-card" style="flex: 1; min-width: 200px">
+        <div class="stat-card">
           <div class="stat-header">
             <div class="stat-title">曲目总数</div>
             <div class="stat-icon icon-2">🎵</div>
@@ -714,7 +717,7 @@
           <div class="stat-change positive">↑ 5% 本月</div>
         </div>
 
-        <div class="stat-card" style="flex: 1; min-width: 200px">
+        <div class="stat-card">
           <div class="stat-header">
             <div class="stat-title">艺术家数量</div>
             <div class="stat-icon icon-3">🎤</div>
@@ -723,7 +726,7 @@
           <div class="stat-change negative">↓ 2% 本月</div>
         </div>
 
-        <div class="stat-card" style="flex: 1; min-width: 200px">
+        <div class="stat-card">
           <div class="stat-header">
             <div class="stat-title">专辑数量</div>
             <div class="stat-icon icon-4">💿</div>
@@ -733,14 +736,14 @@
         </div>
 
         <!-- 播放来源统计卡片 -->
-        <div class="stat-card" style="flex: 1; min-width: 200px">
+        <div class="stat-card">
           <div class="stat-header">
             <div class="stat-title">播放来源分布</div>
             <div class="stat-icon icon-1">📊</div>
           </div>
           <div
             class="chart-container"
-            style="height: 150px; position: relative"
+            style="height: 120px; position: relative"
           >
             <canvas id="sourceChart"></canvas>
           </div>
@@ -778,19 +781,37 @@
             <canvas id="albumChart"></canvas>
           </div>
         </div>
-
         <!-- 播放趋势图 -->
-        <div class="chart-card" style="grid-column: span 2">
+        <div class="chart-card">
+          <!-- <div class="chart-card" style="grid-column: span 2"> -->
           <div class="card-header">
             <div class="card-title">播放趋势</div>
-            <div class="time-filters">
-              <div class="time-filter active" data-range="7">7天</div>
-              <div class="time-filter" data-range="30">30天</div>
-              <div class="time-filter" data-range="90">90天</div>
+            <div style="display: flex; gap: 10px">
+              <div class="time-filters">
+                <div class="time-filter" data-range="7">7天</div>
+                <div class="time-filter active" data-range="30">30天</div>
+                <div class="time-filter" data-range="90">90天</div>
+              </div>
+              <button id="trendChartFullscreenBtn" class="time-filter">
+                全屏
+              </button>
             </div>
           </div>
           <div class="chart-container">
             <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 热门流派 -->
+        <div class="chart-card">
+          <div class="card-header">
+            <div class="card-title">口味流派</div>
+            <button id="genreChartFullscreenBtn" class="time-filter">
+              全屏
+            </button>
+          </div>
+          <div class="chart-container">
+            <canvas id="genreChart"></canvas>
           </div>
         </div>
       </div>
@@ -1253,8 +1274,132 @@
           });
       }
 
+      // 全屏元素和状态
+      let isTrendChartFullscreen = false;
+      let originalChartContainer = null;
+      let originalChartParent = null;
+      let originalChartStyle = null;
+
+      // 切换趋势图全屏显示
+      function toggleTrendChartFullscreen() {
+        const chartContainer =
+          document.querySelector("#trendChart").parentElement;
+        const fullscreenBtn = document.getElementById(
+          "trendChartFullscreenBtn"
+        );
+
+        if (!isTrendChartFullscreen) {
+          // 进入全屏模式
+          // 保存原始父元素和样式
+          originalChartParent = chartContainer.parentElement;
+          originalChartStyle = {
+            width: chartContainer.style.width,
+            height: chartContainer.style.height,
+            position: chartContainer.style.position,
+            zIndex: chartContainer.style.zIndex,
+          };
+
+          // 创建全屏遮罩
+          const fullscreenOverlay = document.createElement("div");
+          fullscreenOverlay.id = "trendChartFullscreenOverlay";
+          fullscreenOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+          `;
+
+          // 创建关闭按钮
+          const closeBtn = document.createElement("button");
+          closeBtn.innerHTML = "×";
+          closeBtn.style.cssText = `
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 36px;
+            cursor: pointer;
+            z-index: 10001;
+          `;
+
+          closeBtn.addEventListener("click", function () {
+            toggleTrendChartFullscreen();
+          });
+
+          // 创建包含图表的容器
+          const chartWrapper = document.createElement("div");
+          chartWrapper.style.cssText = `
+            width: 90%;
+            height: 90%;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+          `;
+
+          // 将图表移动到新容器中
+          chartContainer.style.width = "100%";
+          chartContainer.style.height = "100%";
+          chartWrapper.appendChild(chartContainer);
+          fullscreenOverlay.appendChild(chartWrapper);
+          fullscreenOverlay.appendChild(closeBtn);
+          document.body.appendChild(fullscreenOverlay);
+
+          // 更新按钮文本
+          fullscreenBtn.textContent = "退出全屏";
+
+          // 标记为全屏状态
+          isTrendChartFullscreen = true;
+
+          // 重新渲染图表以适应新尺寸
+          if (window.trendChartInstance) {
+            window.trendChartInstance.resize();
+          }
+        } else {
+          // 退出全屏模式
+          // 移除全屏遮罩
+          const fullscreenOverlay = document.getElementById(
+            "trendChartFullscreenOverlay"
+          );
+          if (fullscreenOverlay) {
+            // 将图表移回原始位置
+            const chartWrapper = fullscreenOverlay.querySelector("div");
+            if (chartWrapper) {
+              originalChartParent.appendChild(chartContainer);
+            }
+
+            // 恢复原始样式
+            chartContainer.style.width = originalChartStyle.width || "";
+            chartContainer.style.height = originalChartStyle.height || "";
+            chartContainer.style.position = originalChartStyle.position || "";
+            chartContainer.style.zIndex = originalChartStyle.zIndex || "";
+
+            // 移除遮罩
+            document.body.removeChild(fullscreenOverlay);
+          }
+
+          // 更新按钮文本
+          fullscreenBtn.textContent = "全屏";
+
+          // 标记为非全屏状态
+          isTrendChartFullscreen = false;
+
+          // 重新渲染图表以适应原始尺寸
+          if (window.trendChartInstance) {
+            window.trendChartInstance.resize();
+          }
+        }
+      }
+
       // 初始化趋势图
-      function initTrendChart(range = 7) {
+      function initTrendChart(range = 30) {
         const ctx = document.getElementById("trendChart").getContext("2d");
 
         // 显示加载状态
@@ -1283,29 +1428,73 @@
               loadingElement.remove();
             }
 
-            // 处理数据
-            const dates = Object.keys(data).sort();
-            const counts = dates.map((date) => data[date]);
+            // 处理新的API响应格式，将数据转换为气泡图所需格式
+            const bubbleData = [];
 
-            new Chart(newCtx, {
-              type: "line",
+            // 遍历hourly数据生成气泡图数据点
+            Object.keys(data.hourly).forEach((date) => {
+              const hourlyData = data.hourly[date];
+              Object.keys(hourlyData.hourly).forEach((hour) => {
+                const playCount = hourlyData.hourly[hour];
+                // 只有播放次数大于0的数据才显示
+                if (playCount > -1) {
+                  // 确保日期格式正确，使用Date构造函数解析日期字符串
+                  const dateObj = new Date(date);
+                  // 调整到当天的中午12:00，避免时区问题导致的日期偏移
+                  dateObj.setHours(12, 0, 0, 0);
+                  bubbleData.push({
+                    x: dateObj, // 使用Date对象而不是时间戳
+                    y: parseInt(hour), // 小时（0-23）
+                    r: playCount, // 播放次数作为气泡半径
+                  });
+                }
+              });
+            });
+
+            // 计算所有数据点中的最大播放次数，用于颜色映射
+            let maxPlayCount = 0;
+            bubbleData.forEach((point) => {
+              if (point.r > maxPlayCount) {
+                maxPlayCount = point.r;
+              }
+            });
+
+            // 颜色插值函数：播放次数多为暖色(红色)，播放次数少为冷色(蓝色)
+            function getColorForCount(count, maxCount) {
+              // 归一化值 (0-1)
+              const normalized = maxCount > 0 ? count / maxCount : 0;
+
+              // 暖色到冷色的渐变
+              // 红色 (255, 0, 0) 到 蓝色 (0, 0, 255)
+              // 反转逻辑：播放次数多显示红色，播放次数少显示蓝色
+              const r = Math.round(255 * normalized);
+              const g = 20;
+              const b = Math.round(255 * (1 - normalized));
+
+              return {
+                background: `rgba(${r}, ${g}, ${b}, 0.4)`,
+                border: `rgba(${r}, ${g}, ${b}, 1)`,
+              };
+            }
+
+            // 保存图表实例以便全屏时重新渲染
+            window.trendChartInstance = new Chart(newCtx, {
+              type: "bubble",
               data: {
-                labels: dates.map((date) => {
-                  const d = new Date(date);
-                  return `${d.getMonth() + 1}/${d.getDate()}`;
-                }),
                 datasets: [
                   {
-                    label: "播放次数",
-                    data: counts,
-                    borderColor: "#3498db",
-                    backgroundColor: "rgba(52, 152, 219, 0.1)",
-                    borderWidth: 3,
-                    pointRadius: 4,
-                    pointBackgroundColor: "#fff",
-                    pointBorderWidth: 2,
-                    tension: 0.3,
-                    fill: true,
+                    label: "播放记录",
+                    data: bubbleData,
+                    backgroundColor: function (context) {
+                      const count = context.raw.r;
+                      return getColorForCount(count, maxPlayCount).background;
+                    },
+                    borderColor: function (context) {
+                      const count = context.raw.r;
+                      return getColorForCount(count, maxPlayCount).border;
+                    },
+                    borderWidth: 1,
+                    pointStyle: "circle",
                   },
                 ],
               },
@@ -1316,29 +1505,87 @@
                   legend: {
                     display: false,
                   },
+                  tooltip: {
+                    callbacks: {
+                      title: function (context) {
+                        // 显示日期和时间
+                        const point = context[0].raw;
+                        const date = new Date(point.x);
+                        return `${date.getFullYear()}-${(date.getMonth() + 1)
+                          .toString()
+                          .padStart(2, "0")}-${date
+                          .getDate()
+                          .toString()
+                          .padStart(2, "0")} ${point.y
+                          .toString()
+                          .padStart(2, "0")}:00`;
+                      },
+                      label: function (context) {
+                        return `播放次数: ${context.raw.r}`;
+                      },
+                    },
+                  },
                 },
                 scales: {
+                  x: {
+                    type: "time",
+                    time: {
+                      unit: "day",
+                      tooltipFormat: "yyyy-MM-dd",
+                      displayFormats: {
+                        day: "MM-dd",
+                      },
+                      // 确保时间轴从数据的最小值开始
+                      minUnit: "day",
+                    },
+                    title: {
+                      display: true,
+                      text: "日期",
+                    },
+                    grid: {
+                      color: "rgba(0, 0, 0, 0.05)",
+                    },
+                    ticks: {
+                      //stepSize: 1,
+                      maxRotation: 60,
+                      minRotation: 45,
+                      autoSkip: true,
+                      // 确保标签与数据点对齐
+                      source: "data",
+                      // 确保标签与数据点对齐
+                      align: "center",
+                    },
+                    // 添加边界设置以确保数据点完全显示
+                    bounds: "data",
+                  },
                   y: {
-                    beginAtZero: true,
+                    type: "linear",
+                    min: -1,
+                    max: 24.7,
+                    ticks: {
+                      stepSize: 1,
+                      maxRotation: 60,
+                      minRotation: 45,
+                      callback: function (value) {
+                        // 显示小时格式 (HH:00)
+                        return `${value.toString().padStart(2, "0")}:00`;
+                      },
+                    },
+                    title: {
+                      display: true,
+                      text: "时间",
+                    },
                     grid: {
                       color: "rgba(0, 0, 0, 0.05)",
                     },
                   },
-                  x: {
-                    grid: {
-                      display: false,
-                    },
-                    ticks: {
-                      autoSkip: false,
-                      maxRotation: 45, // 恢复斜体显示
-                      callback: function (value) {
-                        // 截断过长的标签文本
-                        const label = this.getLabelForValue(value);
-                        if (label && label.length > 15) {
-                          return label.substring(0, 15) + "...";
-                        }
-                        return label;
-                      },
+                },
+                elements: {
+                  point: {
+                    radius: function (context) {
+                      // 根据数据点的 r 值调整半径，添加缩放因子来调整大小
+                      const radius = context.raw.r;
+                      return Math.max(radius * 3, 2); // 最小半径为2
                     },
                   },
                 },
@@ -1655,6 +1902,261 @@
           })
           .catch((error) => {
             console.error("获取专辑数据失败:", error);
+            // 移除加载状态
+            const loadingElement = chartContainer.querySelector(".loading");
+            if (loadingElement) {
+              loadingElement.remove();
+            }
+            chartContainer.innerHTML =
+              '<div class="error">加载失败: ' + error.message + "</div>";
+          });
+      }
+
+      // 全屏元素和状态 - 口味流派图表
+      let isGenreChartFullscreen = false;
+      let originalGenreChartContainer = null;
+      let originalGenreChartParent = null;
+      let originalGenreChartStyle = null;
+
+      // 切换口味流派图表全屏显示
+      function toggleGenreChartFullscreen() {
+        const chartContainer =
+          document.querySelector("#genreChart").parentElement;
+        const fullscreenBtn = document.getElementById(
+          "genreChartFullscreenBtn"
+        );
+
+        if (!isGenreChartFullscreen) {
+          // 进入全屏模式
+          // 保存原始父元素和样式
+          originalGenreChartParent = chartContainer.parentElement;
+          originalGenreChartStyle = {
+            width: chartContainer.style.width,
+            height: chartContainer.style.height,
+            position: chartContainer.style.position,
+            zIndex: chartContainer.style.zIndex,
+          };
+
+          // 创建全屏遮罩
+          const fullscreenOverlay = document.createElement("div");
+          fullscreenOverlay.id = "genreChartFullscreenOverlay";
+          fullscreenOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+          `;
+
+          // 创建关闭按钮
+          const closeBtn = document.createElement("button");
+          closeBtn.innerHTML = "×";
+          closeBtn.style.cssText = `
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 36px;
+            cursor: pointer;
+            z-index: 10001;
+          `;
+
+          closeBtn.addEventListener("click", function () {
+            toggleGenreChartFullscreen();
+          });
+
+          // 创建包含图表的容器
+          const chartWrapper = document.createElement("div");
+          chartWrapper.style.cssText = `
+            width: 90%;
+            height: 90%;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+          `;
+
+          // 将图表移动到新容器中
+          chartContainer.style.width = "100%";
+          chartContainer.style.height = "100%";
+          chartWrapper.appendChild(chartContainer);
+          fullscreenOverlay.appendChild(chartWrapper);
+          fullscreenOverlay.appendChild(closeBtn);
+          document.body.appendChild(fullscreenOverlay);
+
+          // 更新按钮文本
+          fullscreenBtn.textContent = "退出全屏";
+
+          // 标记为全屏状态
+          isGenreChartFullscreen = true;
+
+          // 重新渲染图表以适应新尺寸
+          if (window.genreChartInstance) {
+            window.genreChartInstance.resize();
+          }
+        } else {
+          // 退出全屏模式
+          // 移除全屏遮罩
+          const fullscreenOverlay = document.getElementById(
+            "genreChartFullscreenOverlay"
+          );
+          if (fullscreenOverlay) {
+            // 将图表移回原始位置
+            const chartWrapper = fullscreenOverlay.querySelector("div");
+            if (chartWrapper) {
+              originalGenreChartParent.appendChild(chartContainer);
+            }
+
+            // 恢复原始样式
+            chartContainer.style.width = originalGenreChartStyle.width || "";
+            chartContainer.style.height = originalGenreChartStyle.height || "";
+            chartContainer.style.position =
+              originalGenreChartStyle.position || "";
+            chartContainer.style.zIndex = originalGenreChartStyle.zIndex || "";
+
+            // 移除遮罩
+            document.body.removeChild(fullscreenOverlay);
+          }
+
+          // 更新按钮文本
+          fullscreenBtn.textContent = "全屏";
+
+          // 标记为非全屏状态
+          isGenreChartFullscreen = false;
+
+          // 重新渲染图表以适应原始尺寸
+          if (window.genreChartInstance) {
+            window.genreChartInstance.resize();
+          }
+        }
+      }
+
+      // 初始化热门流派图表
+      function initGenreChart() {
+        const ctx = document.getElementById("genreChart").getContext("2d");
+
+        // 显示加载状态
+        const chartContainer =
+          document.querySelector("#genreChart").parentElement;
+        chartContainer.innerHTML = '<div class="loading">加载中...</div>';
+
+        // 重新创建canvas元素
+        const canvas = document.createElement("canvas");
+        canvas.id = "genreChart";
+        chartContainer.appendChild(canvas);
+        const newCtx = canvas.getContext("2d");
+
+        // 从后端获取数据
+        fetch("/api/dashboard/top-genres?limit=10")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("网络响应错误");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            // 移除加载状态
+            const loadingElement = chartContainer.querySelector(".loading");
+            if (loadingElement) {
+              loadingElement.remove();
+            }
+
+            // 处理数据
+            const genres = data.map((item) => item.track_genre_name);
+            const genresNameZhs = data.map((item) => item.genre_name_zh);
+            const counts = data.map((item) => item.track_genre_count);
+
+            // 定义颜色
+            const backgroundColors = [
+              "rgba(231, 76, 60, 0.8)", // 红
+              "rgba(230, 126, 34, 0.8)", // 橙
+              "rgba(241, 196, 15, 0.8)", // 黄
+              "rgba(46, 204, 113, 0.8)", // 绿
+              "rgba(0, 200, 200, 0.8)", // 青
+              "rgba(52, 152, 219, 0.8)", // 蓝
+              "rgba(0, 90, 140, 0.8)", // 深蓝
+              "rgba(142, 68, 173, 0.8)", // 紫
+              "rgba(127, 140, 141, 0.8)", // 灰
+              "rgba(189, 195, 199, 0.8)", // 浅灰
+            ];
+
+            const borderColors = [
+              "rgba(231, 76, 60, 1)",
+              "rgba(230, 126, 34, 1)",
+              "rgba(241, 196, 15, 1)",
+              "rgba(46, 204, 113, 1)",
+              "rgba(0, 200, 200, 1)",
+              "rgba(52, 152, 219, 1)",
+              "rgba(0, 90, 140, 1)",
+              "rgba(142, 68, 173, 1)",
+              "rgba(127, 140, 141, 1)",
+              "rgba(189, 195, 199, 1)",
+            ];
+
+            // 保存图表实例以便全屏时重新渲染
+            window.genreChartInstance = new Chart(newCtx, {
+              type: "polarArea",
+              data: {
+                labels: genres,
+                datasets: [
+                  {
+                    label: "播放次数",
+                    data: counts,
+                    backgroundColor: backgroundColors,
+                    circular: true,
+                    borderColor: borderColors,
+                    borderWidth: 1,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "left",
+                  },
+                  tooltip: {
+                    callbacks: {
+                      /* label: function (context) {
+                        return "《" + context[0].label + `》- ${genre_name_zh}`; // 专辑名
+                      } ,*/
+                      /* const label = context.label || "";
+                        const value = context.raw || 0;
+                        return `${label}: ${value} 次播放`; */
+                      title: function (ctx) {
+                        const index = ctx[0].dataIndex; // tooltipItems 数组的第 0 个元素
+                        const genre_name_zh = genresNameZhs[index]; // 拿到对应中文名
+                        return ctx[0].label + `（ ${genre_name_zh} ）`; // 专辑名
+                      },
+                    },
+                  },
+                },
+                scales: {
+                  r: {
+                    pointLabels: {
+                      display: true,
+                      centerPointLabels: true,
+                      font: {
+                        size: 12,
+                      },
+                    },
+                    ticks: {
+                      backdropColor: "rgba(0, 0, 0, 0)",
+                    },
+                  },
+                },
+              },
+            });
+          })
+          .catch((error) => {
+            console.error("获取流派数据失败:", error);
             // 移除加载状态
             const loadingElement = chartContainer.querySelector(".loading");
             if (loadingElement) {
@@ -2170,9 +2672,10 @@
         // 初始化各个组件
         initStats();
         initSourceChart(); // 初始化播放来源扇形图
-        initTrendChart(7); // 默认加载7天数据
+        initTrendChart(30); // 默认加载7天数据
         initArtistChart("plays"); // 默认按播放次数排序
         initAlbumChart(30); // 默认加载30天数据
+        initGenreChart(); // 初始化热门流派图表
         initRanking("all"); // 默认总排行
         initRecentPlays(); // 初始化最近播放列表
 
@@ -2218,6 +2721,7 @@
             60000
           )
         ); // 每5秒更新专辑图表
+        dashboardUpdater.addTimer(createAutoUpdater(initGenreChart, 60000)); // 每60秒更新流派图表
         dashboardUpdater.addTimer(
           createAutoUpdater(
             () =>
@@ -2233,10 +2737,23 @@
 
         // 添加时间过滤器点击事件
         document.querySelectorAll(".time-filter").forEach((filter) => {
+          // 跳过全屏按钮
+          if (
+            filter.id === "trendChartFullscreenBtn" ||
+            filter.id === "genreChartFullscreenBtn"
+          )
+            return;
+
           filter.addEventListener("click", function () {
             // 移除同组其他过滤器的active类
             const parent = this.parentElement;
             parent.querySelectorAll(".time-filter").forEach((f) => {
+              // 跳过全屏按钮
+              if (
+                f.id === "trendChartFullscreenBtn" ||
+                f.id === "genreChartFullscreenBtn"
+              )
+                return;
               f.classList.remove("active");
             });
 
@@ -2271,6 +2788,20 @@
             }
           });
         });
+
+        // 全屏按钮点击事件
+        document
+          .getElementById("trendChartFullscreenBtn")
+          .addEventListener("click", function () {
+            toggleTrendChartFullscreen();
+          });
+
+        // 口味流派图表全屏按钮点击事件
+        document
+          .getElementById("genreChartFullscreenBtn")
+          .addEventListener("click", function () {
+            toggleGenreChartFullscreen();
+          });
 
         // 页面加载完成后调整排行榜列表高度
         setTimeout(adjustRankingListsHeight, 1000);

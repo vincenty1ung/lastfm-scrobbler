@@ -6,20 +6,32 @@ import (
 	"sort"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/log"
 )
 
 // Track represents a music track with play statistics and favorite status
 type Track struct {
 	ID              uint      `gorm:"primaryKey" json:"id"`
 	Artist          string    `gorm:"index;uniqueIndex:idx_artist_album_track" json:"artist"`
+	AlbumArtist     string    `gorm:"index" json:"album_artist"` // 专辑艺术家
 	Album           string    `gorm:"index;uniqueIndex:idx_artist_album_track" json:"album"`
 	Track           string    `gorm:"index;uniqueIndex:idx_artist_album_track" json:"track"`
+	TrackNumber     int64     `json:"track_number"`                // 曲目编号
+	Duration        int64     `json:"duration"`                    // 持续时间(秒)
+	Genre           string    `gorm:"index" json:"genre"`          // 流派
+	Composer        string    `json:"composer"`                    // 作曲家
+	ReleaseDate     string    `json:"release_date"`                // 发布日期
+	MusicBrainzID   string    `gorm:"index" json:"musicbrainz_id"` // MusicBrainz ID
 	PlayCount       int       `json:"play_count"`
 	IsAppleMusicFav bool      `json:"is_apple_music_fav"`       // 是否Apple Music喜欢
 	IsLastFmFav     bool      `json:"is_lastfm_fav"`            // 是否Last.fm喜欢
+	Source          string    `gorm:"index" json:"source"`      // 数据来源：Apple Music, Audirvana, Roon等
+	BundleID        string    `json:"bundle_id"`                // 应用标识符 (用于media-control)
+	UniqueID        string    `gorm:"index" json:"unique_id"`   // 唯一标识符 (用于media-control)
 	Version         int       `gorm:"default:1" json:"version"` // 乐观锁版本号
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
@@ -30,29 +42,99 @@ func (Track) TableName() string {
 	return "track"
 }
 
+// TrackMetadata represents metadata for a music track
+type TrackMetadata struct {
+	AlbumArtist   string `json:"album_artist"`   // 专辑艺术家
+	TrackNumber   int64  `json:"track_number"`   // 曲目编号
+	Duration      int64  `json:"duration"`       // 持续时间(秒)
+	Genre         string `json:"genre"`          // 流派
+	Composer      string `json:"composer"`       // 作曲家
+	ReleaseDate   string `json:"release_date"`   // 发布日期
+	MusicBrainzID string `json:"musicbrainz_id"` // MusicBrainz ID
+	Source        string `json:"source"`         // 数据来源：Apple Music, Audirvana, Roon等
+	BundleID      string `json:"bundle_id"`      // 应用标识符 (用于media-control)
+	UniqueID      string `json:"unique_id"`      // 唯一标识符 (用于media-control)
+}
+
+// IncrementTrackPlayCountParams represents parameters for IncrementTrackPlayCount function
+type IncrementTrackPlayCountParams struct {
+	Ctx           context.Context
+	Artist        string
+	Album         string
+	Track         string
+	TrackMetadata TrackMetadata
+}
+
+// SetFavoriteParams represents parameters for SetAppleMusicFavorite and SetLastFmFavorite functions
+type SetFavoriteParams struct {
+	Ctx           context.Context
+	Artist        string
+	Album         string
+	Track         string
+	IsFavorite    bool
+	TrackMetadata TrackMetadata
+}
+
 // IncrementTrackPlayCount increments the play count for a track
-func IncrementTrackPlayCount(ctx context.Context, artist, album, track string) error {
+func IncrementTrackPlayCount(params IncrementTrackPlayCountParams) error {
 	// 验证艺术家、专辑和曲目信息
-	if err := common.ValidateTrackInfo(ctx, artist, album, track); err != nil {
+	if err := common.ValidateTrackInfo(params.Ctx, params.Artist, params.Album, params.Track); err != nil {
 		return err
 	}
 
+	// 检查流派信息
+	if params.TrackMetadata.Genre != "" {
+		genreByName, err := GetGenreByName(params.Ctx, params.TrackMetadata.Genre)
+		if err != nil {
+			log.Warn(
+				params.Ctx, "Error getting genre by name", zap.String("genre", params.TrackMetadata.Genre),
+				zap.Error(err),
+			)
+			return err
+		}
+		if genreByName == nil {
+			err := CreateGenre(
+				params.Ctx, &Genre{
+					Name:      params.TrackMetadata.Genre,
+					NameZh:    "",
+					Extra:     "",
+					PlayCount: 0,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+			)
+			if err != nil {
+				log.Warn(params.Ctx, "CreateGenre", zap.String("genre", params.TrackMetadata.Genre), zap.Error(err))
+			}
+		}
+	}
 	// 使用乐观锁机制更新播放次数
 	for {
 		var record Track
-		err := GetDB().WithContext(ctx).Where(
-			"artist = ? AND album = ? AND track = ?", artist, album, track,
+		err := GetDB().WithContext(params.Ctx).Where(
+			"artist = ? AND album = ? AND track = ?", params.Artist, params.Album, params.Track,
 		).First(&record).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// Create new record
 				record = Track{
-					Artist:    artist,
-					Album:     album,
-					Track:     track,
-					PlayCount: 1,
+
+					Artist:        params.Artist,
+					AlbumArtist:   params.TrackMetadata.AlbumArtist,
+					Album:         params.Album,
+					Track:         params.Track,
+					TrackNumber:   params.TrackMetadata.TrackNumber,
+					Duration:      params.TrackMetadata.Duration,
+					Genre:         params.TrackMetadata.Genre,
+					Composer:      params.TrackMetadata.Composer,
+					ReleaseDate:   params.TrackMetadata.ReleaseDate,
+					MusicBrainzID: params.TrackMetadata.MusicBrainzID,
+					Source:        params.TrackMetadata.Source,
+					BundleID:      params.TrackMetadata.BundleID,
+					UniqueID:      params.TrackMetadata.UniqueID,
+					PlayCount:     1,
 				}
-				err = GetDB().WithContext(ctx).Create(&record).Error
+				err = GetDB().WithContext(params.Ctx).Create(&record).Error
 				if err != nil && !errors.Is(err, gorm.ErrDuplicatedKey) {
 					return err
 				}
@@ -71,9 +153,156 @@ func IncrementTrackPlayCount(ctx context.Context, artist, album, track string) e
 			Version:   record.Version + 1,
 		}
 
-		result := GetDB().WithContext(ctx).Where(
+		// 更新meta信息
+		UpdateTrackWithTrackMetadata(&updatedRecord, &params.TrackMetadata)
+
+		result := GetDB().WithContext(params.Ctx).Where(
 			"artist = ? AND album = ? AND track = ? AND version = ?",
-			artist, album, track, record.Version,
+			params.Artist, params.Album, params.Track, record.Version,
+		).Updates(&updatedRecord)
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		// 如果更新成功，跳出循环
+		if result.RowsAffected > 0 {
+			break
+		}
+		// 如果更新失败（版本号不匹配），继续循环重试
+	}
+
+	return nil
+}
+
+// SetAppleMusicFavorite updates the Apple Music favorite status for a track
+func SetAppleMusicFavorite(params SetFavoriteParams) error {
+	// 验证艺术家、专辑和曲目信息
+	if err := common.ValidateTrackInfo(params.Ctx, params.Artist, params.Album, params.Track); err != nil {
+		return err
+	}
+
+	// 使用乐观锁机制更新喜欢状态
+	for {
+		var record Track
+		err := GetDB().WithContext(params.Ctx).Where(
+			"artist = ? AND album = ? AND track = ?", params.Artist, params.Album, params.Track,
+		).First(&record).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new record
+				record = Track{
+					Artist:          params.Artist,
+					AlbumArtist:     params.TrackMetadata.AlbumArtist,
+					Album:           params.Album,
+					Track:           params.Track,
+					TrackNumber:     params.TrackMetadata.TrackNumber,
+					Duration:        params.TrackMetadata.Duration,
+					Genre:           params.TrackMetadata.Genre,
+					Composer:        params.TrackMetadata.Composer,
+					ReleaseDate:     params.TrackMetadata.ReleaseDate,
+					MusicBrainzID:   params.TrackMetadata.MusicBrainzID,
+					Source:          params.TrackMetadata.Source,
+					BundleID:        params.TrackMetadata.BundleID,
+					UniqueID:        params.TrackMetadata.UniqueID,
+					PlayCount:       0,
+					IsAppleMusicFav: params.IsFavorite,
+				}
+				err = GetDB().WithContext(params.Ctx).Create(&record).Error
+				if err != nil && !errors.Is(err, gorm.ErrDuplicatedKey) {
+					return err
+				}
+				// 如果出现重复键错误，说明其他goroutine已经创建了记录，继续循环处理
+				if errors.Is(err, gorm.ErrDuplicatedKey) {
+					continue
+				}
+				return nil
+			}
+			return err
+		}
+
+		// Update existing record with optimistic locking
+		updatedRecord := Track{
+			IsAppleMusicFav: params.IsFavorite,
+			Version:         record.Version + 1,
+		}
+		UpdateTrackWithTrackMetadata(&record, &params.TrackMetadata)
+
+		result := GetDB().WithContext(params.Ctx).Where(
+			"artist = ? AND album = ? AND track = ? AND version = ?",
+			params.Artist, params.Album, params.Track, record.Version,
+		).Updates(&updatedRecord)
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		// 如果更新成功，跳出循环
+		if result.RowsAffected > 0 {
+			break
+		}
+		// 如果更新失败（版本号不匹配），继续循环重试
+	}
+
+	return nil
+}
+
+// SetLastFmFavorite updates the Last.fm favorite status for a track
+func SetLastFmFavorite(params SetFavoriteParams) error {
+	// 验证艺术家、专辑和曲目信息
+	if err := common.ValidateTrackInfo(params.Ctx, params.Artist, params.Album, params.Track); err != nil {
+		return err
+	}
+
+	// 使用乐观锁机制更新喜欢状态
+	for {
+		var record Track
+		err := GetDB().WithContext(params.Ctx).Where(
+			"artist = ? AND album = ? AND track = ?", params.Artist, params.Album, params.Track,
+		).First(&record).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new record
+				record = Track{
+					Artist:        params.Artist,
+					AlbumArtist:   params.TrackMetadata.AlbumArtist,
+					Album:         params.Album,
+					Track:         params.Track,
+					TrackNumber:   params.TrackMetadata.TrackNumber,
+					Duration:      params.TrackMetadata.Duration,
+					Genre:         params.TrackMetadata.Genre,
+					Composer:      params.TrackMetadata.Composer,
+					ReleaseDate:   params.TrackMetadata.ReleaseDate,
+					MusicBrainzID: params.TrackMetadata.MusicBrainzID,
+					Source:        params.TrackMetadata.Source,
+					BundleID:      params.TrackMetadata.BundleID,
+					UniqueID:      params.TrackMetadata.UniqueID,
+					PlayCount:     0,
+					IsLastFmFav:   params.IsFavorite,
+				}
+				err = GetDB().WithContext(params.Ctx).Create(&record).Error
+				if err != nil && !errors.Is(err, gorm.ErrDuplicatedKey) {
+					return err
+				}
+				// 如果出现重复键错误，说明其他goroutine已经创建了记录，继续循环处理
+				if errors.Is(err, gorm.ErrDuplicatedKey) {
+					continue
+				}
+				return nil
+			}
+			return err
+		}
+
+		// Update existing record with optimistic locking
+		updatedRecord := Track{
+			IsLastFmFav: params.IsFavorite,
+			Version:     record.Version + 1,
+		}
+		UpdateTrackWithTrackMetadata(&record, &params.TrackMetadata)
+
+		result := GetDB().WithContext(params.Ctx).Where(
+			"artist = ? AND album = ? AND track = ? AND version = ?",
+			params.Artist, params.Album, params.Track, record.Version,
 		).Updates(&updatedRecord)
 
 		if result.Error != nil {
@@ -283,128 +512,6 @@ func GetTracksByPeriod(ctx context.Context, limit int, offset int, period string
 	return trackCounts[start:end], nil
 }
 
-// SetAppleMusicFavorite updates the Apple Music favorite status for a track
-func SetAppleMusicFavorite(ctx context.Context, artist, album, track string, isFavorite bool) error {
-	// 验证艺术家、专辑和曲目信息
-	if err := common.ValidateTrackInfo(ctx, artist, album, track); err != nil {
-		return err
-	}
-
-	// 使用乐观锁机制更新喜欢状态
-	for {
-		var record Track
-		err := GetDB().WithContext(ctx).Where(
-			"artist = ? AND album = ? AND track = ?", artist, album, track,
-		).First(&record).Error
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create new record
-				record = Track{
-					Artist:          artist,
-					Album:           album,
-					Track:           track,
-					PlayCount:       0,
-					IsAppleMusicFav: isFavorite,
-				}
-				err = GetDB().WithContext(ctx).Create(&record).Error
-				if err != nil && !errors.Is(err, gorm.ErrDuplicatedKey) {
-					return err
-				}
-				// 如果出现重复键错误，说明其他goroutine已经创建了记录，继续循环处理
-				if errors.Is(err, gorm.ErrDuplicatedKey) {
-					continue
-				}
-				return nil
-			}
-			return err
-		}
-
-		// Update existing record with optimistic locking
-		updatedRecord := Track{
-			IsAppleMusicFav: isFavorite,
-			Version:         record.Version + 1,
-		}
-
-		result := GetDB().WithContext(ctx).Where(
-			"artist = ? AND album = ? AND track = ? AND version = ?",
-			artist, album, track, record.Version,
-		).Updates(&updatedRecord)
-
-		if result.Error != nil {
-			return result.Error
-		}
-
-		// 如果更新成功，跳出循环
-		if result.RowsAffected > 0 {
-			break
-		}
-		// 如果更新失败（版本号不匹配），继续循环重试
-	}
-
-	return nil
-}
-
-// SetLastFmFavorite updates the Last.fm favorite status for a track
-func SetLastFmFavorite(ctx context.Context, artist, album, track string, isFavorite bool) error {
-	// 验证艺术家、专辑和曲目信息
-	if err := common.ValidateTrackInfo(ctx, artist, album, track); err != nil {
-		return err
-	}
-
-	// 使用乐观锁机制更新喜欢状态
-	for {
-		var record Track
-		err := GetDB().WithContext(ctx).Where(
-			"artist = ? AND album = ? AND track = ?", artist, album, track,
-		).First(&record).Error
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create new record
-				record = Track{
-					Artist:      artist,
-					Album:       album,
-					Track:       track,
-					PlayCount:   0,
-					IsLastFmFav: isFavorite,
-				}
-				err = GetDB().WithContext(ctx).Create(&record).Error
-				if err != nil && !errors.Is(err, gorm.ErrDuplicatedKey) {
-					return err
-				}
-				// 如果出现重复键错误，说明其他goroutine已经创建了记录，继续循环处理
-				if errors.Is(err, gorm.ErrDuplicatedKey) {
-					continue
-				}
-				return nil
-			}
-			return err
-		}
-
-		// Update existing record with optimistic locking
-		updatedRecord := Track{
-			IsLastFmFav: isFavorite,
-			Version:     record.Version + 1,
-		}
-
-		result := GetDB().WithContext(ctx).Where(
-			"artist = ? AND album = ? AND track = ? AND version = ?",
-			artist, album, track, record.Version,
-		).Updates(&updatedRecord)
-
-		if result.Error != nil {
-			return result.Error
-		}
-
-		// 如果更新成功，跳出循环
-		if result.RowsAffected > 0 {
-			break
-		}
-		// 如果更新失败（版本号不匹配），继续循环重试
-	}
-
-	return nil
-}
-
 // GetAppleMusicFavorite retrieves the Apple Music favorite status for a track
 func GetAppleMusicFavorite(ctx context.Context, artist, album, track string) (bool, error) {
 	record, err := GetTrack(ctx, artist, album, track)
@@ -421,4 +528,52 @@ func GetLastFmFavorite(ctx context.Context, artist, album, track string) (bool, 
 		return false, err
 	}
 	return record.IsLastFmFav, nil
+}
+
+func UpdateTrackWithTrackMetadata(track *Track, newTrack *TrackMetadata) {
+	if track == nil || newTrack == nil {
+		return
+	}
+
+	// Update fields that might be missing from exiftool but available in media control
+	if track.Duration == 0 && newTrack.Duration > 0 {
+		track.Duration = newTrack.Duration
+	}
+
+	if track.AlbumArtist == "" && newTrack.AlbumArtist != "" {
+		track.AlbumArtist = newTrack.AlbumArtist
+	}
+
+	if track.TrackNumber == 0 && newTrack.TrackNumber > 0 {
+		track.TrackNumber = newTrack.TrackNumber
+	}
+
+	if track.MusicBrainzID == "" && newTrack.MusicBrainzID != "" {
+		track.MusicBrainzID = newTrack.MusicBrainzID
+	}
+
+	if track.Genre == "" && newTrack.Genre != "" {
+		track.Genre = newTrack.Genre
+	}
+
+	if track.ReleaseDate == "" && newTrack.ReleaseDate != "" {
+		track.ReleaseDate = newTrack.ReleaseDate
+	}
+
+	if track.Composer == "" && newTrack.Composer != "" {
+		track.Composer = newTrack.Composer
+	}
+
+	if track.BundleID == "" && newTrack.BundleID != "" {
+		track.BundleID = newTrack.BundleID
+	}
+
+	if track.UniqueID == "" && newTrack.UniqueID != "" {
+		track.UniqueID = newTrack.UniqueID
+	}
+
+	// Update source if not set
+	if track.Source == "" && newTrack.Source != "" {
+		track.Source = newTrack.Source
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-audio/wav"
 	"github.com/spf13/cast"
@@ -18,20 +19,33 @@ import (
 )
 
 const (
-	MRMediaNowPlayingGet              = "get"
-	MRMediaNowPlayingAppRoon          = "com.roon.Roon"
-	MRMediaNowPlayingAppMusic         = "com.apple.Music"
-	MRMediaNowPlayingBundleIdentifier = "bundleIdentifier"
-	MRMediaNowPlayingIsPlaying        = "isPlaying"
-	MRMediaNowPlayingAlbum            = "album"
-	MRMediaNowPlayingTitle            = "title"
-	MRMediaNowPlayingArtist           = "artist"
+	MRMediaNowPlayingGet                   = "get"
+	MRMediaNowPlayingAppRoon               = "com.roon.Roon"
+	MRMediaNowPlayingAppMusic              = "com.apple.Music"
+	MRMediaNowPlaying163                   = "com.netease.163music"
+	MRMediaNowPlayingBundleIdentifier      = "bundleIdentifier"
+	MRMediaNowPlayingContentItemIdentifier = "contentItemIdentifier"
+
+	MRMediaNowPlayingAlbum  = "album"
+	MRMediaNowPlayingTitle  = "title"
+	MRMediaNowPlayingArtist = "artist"
+
+	MRMediaNowPlayingIsPlaying = "isPlaying"
+	MRMediaNowPlayingPlaying   = "playing"
+
 	MRMediaNowPlayingDuration         = "duration"
 	MRMediaNowPlayingElapsedTime      = "elapsedTime"
+	MRMediaNowPlayingElapsedTimeNow   = "elapsedTimeNow"
 	MRMediaNowPlayingTimestamp        = "timestamp"
 	MRMediaNowPlayingMediaType        = "mediaType"
 	MRMediaNowPlayingIsMusicApp       = "isMusicApp"
 	MRMediaNowPlayingUniqueIdentifier = "uniqueIdentifier"
+
+	// MediaControlCmd MediaControl commands
+	MediaControlCmd      = "media-control"
+	MediaControlGet      = "get"
+	MediaControlNowFlag  = "--now"
+	MediaControlHelpFlag = "-h"
 )
 
 type (
@@ -39,9 +53,16 @@ type (
 		GetTitle() string
 		GetArtists() string
 		GetArtist() string
-		GetAlbumartist() string
+		GetAlbum() string
 		GetTrackNumber() int64
 		GetMusicBrainzTrackId() string
+		GetGenre() string
+		GetComposer() string
+		GetDuration() int64
+		GetReleaseDate() string
+		GetSource() string
+		GetBundleID() string
+		GetUniqueID() string
 	}
 
 	ExiftoolInfo map[string]any
@@ -57,20 +78,51 @@ type (
 		ElapsedTime      float64 `json:"elapsed_time"`
 		BundleIdentifier string  `json:"bundleIdentifier"`
 	}
+	MediaControlNowPlayingInfo struct {
+		// media-control get -h --now
+		TrackID         string
+		Title           string `json:"title"`           // 标题
+		Album           string `json:"album"`           // 专辑
+		Artist          string `json:"artist"`          // 艺术家
+		Genre           string `json:"genre"`           // 流派
+		TrackNumber     int    `json:"trackNumber"`     // 曲目编号
+		TotalTrackCount int    `json:"totalTrackCount"` // 总曲目数
+
+		Playing        bool    `json:"playing"`        // 是否正在播放
+		Duration       int64   `json:"duration"`       // 持续时间
+		ElapsedTime    float64 `json:"elapsedTime"`    // 播放时间（在暂时无用）
+		ElapsedTimeNow float64 `json:"elapsedTimeNow"` // 当前播放时间
+		IsMusicApp     bool    `json:"isMusicApp"`     // 是否是音乐应用
+
+		Composer              string `json:"composer"`              // 作曲家
+		BundleIdentifier      string `json:"bundleIdentifier"`      // 软件标识
+		ContentItemIdentifier string `json:"contentItemIdentifier"` // 疑似歌曲id
+
+		ArtworkData       string    `json:"artworkData"`       // 封面数据
+		UniqueIdentifier  int64     `json:"uniqueIdentifier"`  // 唯一标识符
+		RepeatMode        int       `json:"repeatMode"`        // 重复模式
+		QueueIndex        int       `json:"queueIndex"`        // 队列索引
+		ArtworkMimeType   string    `json:"artworkMimeType"`   // 封面类型
+		MediaType         string    `json:"mediaType"`         // 媒体类型
+		Timestamp         time.Time `json:"timestamp"`         // 时间戳
+		ShuffleMode       int       `json:"shuffleMode"`       //	洗牌模式
+		ProcessIdentifier int       `json:"processIdentifier"` // 进程标识符
+		TotalQueueCount   int       `json:"totalQueueCount"`   // 总队列数
+		PlaybackRate      int       `json:"playbackRate"`      // 播放速率
+
+		Position   float64 // 播放位置
+		Url        string  // 歌曲链接
+		AirfoiLogo string  // 封面
+	}
 )
 
-func BuildExiftoolHandle(file string) (MataDataHandle, error) {
+func BuildExiftoolHandle(ctx context.Context, file string) (MataDataHandle, error) {
 	infos := make([]*ExiftoolInfo, 0)
 	res := new(ExiftoolInfo)
-	/*ok, file, err := IsValidPath(file)
+	command, err := runCommand(ctx, "exiftool", "-json", file)
 	if err != nil {
+		alog.Warn(ctx, "fail to get exiftool info", zap.Error(err))
 		return nil, err
-	}
-	if !ok {
-		return nil, fmt.Errorf("invalid exiftool path: %s", file)
-	}*/
-	command, err := runCommand("exiftool", "-json", file)
-	if err != nil {
 	}
 	err = json.Unmarshal([]byte(command), &infos)
 	if err != nil {
@@ -84,24 +136,6 @@ func BuildExiftoolHandle(file string) (MataDataHandle, error) {
 
 func BuildWavInfoHandle(file string) (MataDataHandle, error) {
 	wavInfo := new(WavInfo)
-	/*if ok, file, err := IsValidPath(file); err != nil {
-		return nil, err
-	} else if ok {
-		in, err := os.Open(file)
-		defer func(in *os.File) {
-			err := in.Close()
-			if err != nil {
-				alog.Error(context.Background(), "Failed to close file", zap.String("file", file), zap.Error(err))
-			}
-		}(in)
-		if err != nil {
-			return nil, err
-		}
-		if mwav := wav.NewDecoder(in); mwav.IsValidFile() {
-			mwav.ReadMetadata()
-			wavInfo.Metadata = *mwav.Metadata
-		}
-	}*/
 	in, err := os.Open(file)
 	defer func(in *os.File) {
 		err := in.Close()
@@ -119,9 +153,8 @@ func BuildWavInfoHandle(file string) (MataDataHandle, error) {
 	return wavInfo, nil
 }
 
-// GetTrackNumber GetTrackNumber
 func (receiver ExiftoolInfo) GetTitle() string {
-	key1, key2 := "Artists", "artists"
+	key1, key2 := "Title", "title"
 	var val any
 	val, ok := receiver[key1]
 	if ok {
@@ -134,7 +167,6 @@ func (receiver ExiftoolInfo) GetTitle() string {
 	return ""
 }
 
-// GetTrackNumber GetTrackNumber
 func (receiver ExiftoolInfo) GetArtists() string {
 	key1, key2 := "Artists", "artists"
 	var val any
@@ -161,8 +193,8 @@ func (receiver ExiftoolInfo) GetArtist() string {
 	}
 	return ""
 }
-func (receiver ExiftoolInfo) GetAlbumartist() string {
-	key1, key2, key3 := "Albumartist", "albumArtist", "AlbumArtist"
+func (receiver ExiftoolInfo) GetAlbum() string {
+	key1, key2, key3 := "Album", "album", "album_"
 	var val any
 	val, ok := receiver[key1]
 	if ok {
@@ -187,22 +219,27 @@ func (receiver ExiftoolInfo) GetTrackNumber() int64 {
 	var val any
 	val, ok := receiver[key1]
 	if ok {
-		return castToInt64(val)
+		toString := cast.ToString(val)
+		if ok := strings.Contains(toString, "of"); ok {
+			split := strings.Split(toString, "of")
+			return cast.ToInt64(strings.TrimSpace(split[0]))
+		}
+		return cast.ToInt64(toString)
 	}
 	val, ok = receiver[key2]
 	if ok {
-		return castToInt64(val)
+		return cast.ToInt64(val)
 	}
 	val, ok = receiver[key3]
 	if ok {
-		return castToInt64(val)
+		return cast.ToInt64(val)
 	}
 	return 0
 }
 
 // GetMusicBrainzTrackID GetMusicBrainzTrackID
 func (receiver ExiftoolInfo) GetMusicBrainzTrackId() string {
-	key1, key2 := "MusicbrainzTrackid", "MusicBrainzTrackId"
+	key1, key2 := "MusicbrainzTrackid", "MusicBrainzReleaseTrackId"
 	var val any
 	val, ok := receiver[key1]
 	if ok {
@@ -215,33 +252,239 @@ func (receiver ExiftoolInfo) GetMusicBrainzTrackId() string {
 	return ""
 }
 
-// GetTrackNumber GetTrackNumber
-func (receiver *WavInfo) GetTitle() string {
-	return receiver.Product
+// GetGenre returns the genre of the track
+func (receiver ExiftoolInfo) GetGenre() string {
+	key1, key2, key3 := "Genre", "genre", "GenreName"
+	var val any
+	val, ok := receiver[key1]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key2]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key3]
+	if ok {
+		return cast.ToString(val)
+	}
+	return ""
 }
 
-// GetTrackNumber GetTrackNumber
+// GetComposer returns the composer of the track
+func (receiver ExiftoolInfo) GetComposer() string {
+	key1, key2, key3 := "Composer", "composer", "ComposerName"
+	var val any
+	val, ok := receiver[key1]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key2]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key3]
+	if ok {
+		return cast.ToString(val)
+	}
+	return ""
+}
+
+// GetDuration returns the duration of the track in seconds
+func (receiver ExiftoolInfo) GetDuration() int64 {
+	key1, key2, key3 := "Duration", "duration", "TrackDuration"
+	var val any
+	val, ok := receiver[key1]
+	if ok {
+		// "Duration": "0:05:48" 是这个格式
+		// 分钟加秒的字符串转换成秒
+		if strVal, ok := val.(string); ok {
+			parts := strings.Split(strVal, ":")
+			if len(parts) == 3 {
+				hours := cast.ToInt64(parts[0])
+				minutes := cast.ToInt64(parts[1])
+				seconds := cast.ToInt64(parts[2])
+				return hours*3600 + minutes*60 + seconds
+			} else if len(parts) == 2 {
+				minutes := cast.ToInt64(parts[0])
+				seconds := cast.ToInt64(parts[1])
+				return minutes*60 + seconds
+			} else if len(parts) == 1 {
+				return cast.ToInt64(parts[0])
+			}
+		}
+		return cast.ToInt64(val)
+	}
+	val, ok = receiver[key2]
+	if ok {
+		return cast.ToInt64(val)
+	}
+	val, ok = receiver[key3]
+	if ok {
+		return cast.ToInt64(val)
+	}
+	return 0
+}
+
+// GetReleaseDate returns the release date of the track
+func (receiver ExiftoolInfo) GetReleaseDate() string {
+	key1, key2, key3, key4 := "Originaldate", "ReleaseDate", "RELEASETIME", "OriginalDate"
+	var val any
+	val, ok := receiver[key1]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key2]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key3]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key4]
+	if ok {
+		return cast.ToString(val)
+	}
+	return ""
+}
+
+// GetSource returns the source of the track metadata
+func (receiver ExiftoolInfo) GetSource() string {
+	key1, key2 := "ISRC", "ISRCNumber"
+	var val any
+	val, ok := receiver[key1]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key2]
+	if ok {
+		return cast.ToString(val)
+	}
+	return ""
+}
+
+// GetBundleID returns the bundle identifier of the application
+func (receiver ExiftoolInfo) GetBundleID() string {
+	key1, key2, key3, key4, key5 := "BundleID", "Comment", "BundleIdentifier", "ISRC", "ISRCNumber"
+	var val any
+	val, ok := receiver[key1]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key2]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key3]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key4]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key5]
+	if ok {
+		return cast.ToString(val)
+	}
+	return ""
+}
+
+// GetUniqueID returns the unique identifier of the track
+func (receiver ExiftoolInfo) GetUniqueID() string {
+	key1, key2, key3 := "MD5Signature", "AppleStoreCatalogID", "UniqueIdentifier"
+	var val any
+	val, ok := receiver[key1]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key2]
+	if ok {
+		return cast.ToString(val)
+	}
+	val, ok = receiver[key3]
+	if ok {
+		return cast.ToString(val)
+	}
+	return ""
+}
+
+// GetTitle returns the title of the track
+func (receiver *WavInfo) GetTitle() string {
+	return receiver.Title
+}
+
+// GetArtists returns the artists of the track
 func (receiver *WavInfo) GetArtists() string {
 	return receiver.Artist
 }
+
+// GetArtist returns the primary artist of the track
 func (receiver *WavInfo) GetArtist() string {
 	return receiver.Artist
 }
-func (receiver *WavInfo) GetAlbumartist() string {
-	return receiver.Artist
+
+// GetAlbumartist returns the album artist
+func (receiver *WavInfo) GetAlbum() string {
+	return ""
 }
 
-// GetTrackNumber GetTrackNumber
+// GetTrackNumber returns the track number
 func (receiver *WavInfo) GetTrackNumber() int64 {
 	return castToInt64(receiver.TrackNbr)
 }
 
-// GetMusicBrainzTrackID GetMusicBrainzTrackID
+// GetMusicBrainzTrackId returns the MusicBrainz track ID
 func (receiver *WavInfo) GetMusicBrainzTrackId() string {
+	// WAV files don't have a standard MusicBrainz track ID field
 	return ""
 }
 
-func GetMRMediaNowPlaying() (*MRMediaNowPlaying, error) {
+// GetGenre returns the genre of the track
+func (receiver *WavInfo) GetGenre() string {
+	// WAV files have a Genre field in metadata
+	return receiver.Genre
+}
+
+// GetComposer returns the composer of the track
+func (receiver *WavInfo) GetComposer() string {
+	// WAV files don't have a standard composer field in the Metadata struct
+	return ""
+}
+
+// GetDuration returns the duration of the track in seconds
+func (receiver *WavInfo) GetDuration() int64 {
+	// WAV files don't have a standard duration field in metadata
+	// Duration would typically come from the file itself, not metadata
+	return 0
+}
+
+// GetReleaseDate returns the release date of the track
+func (receiver *WavInfo) GetReleaseDate() string {
+	// WAV files have a CreationDate field in metadata
+	return receiver.CreationDate
+}
+
+// GetSource returns the source of the track metadata
+func (receiver *WavInfo) GetSource() string {
+	// WAV files have a Source field in metadata
+	return receiver.Source
+}
+
+// GetBundleID returns the bundle identifier of the application
+func (receiver *WavInfo) GetBundleID() string {
+	// WAV files don't have a bundle identifier in metadata
+	return ""
+}
+
+// GetUniqueID returns the unique identifier of the track
+func (receiver *WavInfo) GetUniqueID() string {
+	// WAV files don't have a standard unique identifier field in metadata
+	return ""
+}
+
+func GetMRMediaNowPlayingCli(ctx context.Context) (*MRMediaNowPlaying, error) {
 	// nowplaying-cli  get album title artist duration elapsedTime timestamp mediaType isMusicApp  uniqueIdentifier
 	args := []string{
 		MRMediaNowPlayingGet,
@@ -268,9 +511,7 @@ func GetMRMediaNowPlaying() (*MRMediaNowPlaying, error) {
 		MRMediaNowPlayingIsMusicApp:       9,
 		MRMediaNowPlayingUniqueIdentifier: 10,
 	}
-	output, err := runCommand(
-		"nowplaying-cli-mac", args...,
-	)
+	output, err := runCommand(ctx, "nowplaying-cli-mac", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -293,6 +534,24 @@ func GetMRMediaNowPlaying() (*MRMediaNowPlaying, error) {
 		}
 	}
 	return &np, nil
+}
+
+// GetMediaControlNowPlaying executes media-control command to get current playing track info
+func GetMediaControlNowPlaying(ctx context.Context) (*MediaControlNowPlayingInfo, error) {
+	// Execute: media-control get -h --now
+	output, err := runCommand(ctx, MediaControlCmd, MediaControlGet, MediaControlHelpFlag, MediaControlNowFlag)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse JSON output
+	var info MediaControlNowPlayingInfo
+	err = json.Unmarshal([]byte(output), &info)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing media-control output: %v", err)
+	}
+
+	return &info, nil
 }
 
 func castToInt64(val any) int64 {
@@ -324,11 +583,12 @@ func castToInt64(val any) int64 {
 	return 0
 }
 
-func runCommand(command string, args ...string) (string, error) {
+func runCommand(ctx context.Context, command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("Error executing command %s: %v\n%s", command, err, output)
+		alog.Warn(ctx, "error executing command", zap.Error(err))
+		return "", errors.New(string(output))
 	}
 	return string(output), nil
 }

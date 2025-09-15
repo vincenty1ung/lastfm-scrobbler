@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -17,6 +18,7 @@ import (
 	"github.com/vincenty1ung/lastfm-scrobbler/core/log"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/websocket"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/logic/analysis"
+	"github.com/vincenty1ung/lastfm-scrobbler/internal/logic/genre"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/logic/track"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
@@ -224,23 +226,61 @@ func setupRouter(name string) *gin.Engine {
 			default:
 				rangeDays = 7
 			}
+			fillInTrendCycle := FillInTrendCycle(rangeDays)
 
 			// 获取指定天数的播放记录
-			records, err := trackService.GetRecentPlayRecordsByDays(ctx, rangeDays)
+			recordMap, err := trackService.GetRecentPlayRecordsByDays(ctx, rangeDays)
 			if err != nil {
 				log.Error(ctx, "Failed to get recent play records", zap.Error(err))
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recent play records"})
 				return
 			}
-
 			// 处理数据以适应趋势图
-			trendData := make(map[string]int)
-			for _, record := range records {
-				date := record.PlayTime.Format("2006-01-02")
-				trendData[date]++
+			// 按日期统计播放次数
+			dateTrendData := make(map[string]int)
+			// 按日期和小时统计播放次数
+			hourlyTrendData := make(map[string]*model.HourlyPlayTrendData)
+			for _, trendCycle := range fillInTrendCycle {
+				if records, ok := recordMap[trendCycle]; ok {
+					for _, record := range records {
+						dateStr := record.PlayTime.Format("2006-01-02")
+						hour := record.PlayTime.Hour()
+						// 统计每日总播放次数
+						dateTrendData[dateStr]++
+						// 初始化该日期的小时统计数据
+						if _, exists := hourlyTrendData[dateStr]; !exists {
+							hourlyTrendData[dateStr] = &model.HourlyPlayTrendData{
+								Date:   dateStr,
+								Total:  0,
+								Hourly: make(map[int]int),
+							}
+						}
+
+						// 统计该小时的播放次数
+						hourlyTrendData[dateStr].Hourly[hour]++
+						hourlyTrendData[dateStr].Total++
+					}
+				} else {
+					dateTrendData[trendCycle] = 0
+					hourlyTrendData[trendCycle] = &model.HourlyPlayTrendData{
+						Date:  trendCycle,
+						Total: 0,
+						Hourly: map[int]int{
+							0: 0,
+							1: 0,
+							2: 0,
+						},
+					}
+				}
 			}
 
-			c.JSON(http.StatusOK, trendData)
+			// 构造返回数据
+			result := gin.H{
+				"daily":  dateTrendData,
+				"hourly": hourlyTrendData,
+			}
+
+			c.JSON(http.StatusOK, result)
 		},
 	)
 
@@ -488,31 +528,6 @@ func setupRouter(name string) *gin.Engine {
 		},
 	)
 
-	// WebSocket endpoint
-	r.GET(
-		"/ws", func(c *gin.Context) {
-			// 升级HTTP连接到WebSocket连接
-			conn, err := websocket.UpgradeConnection(c.Writer, c.Request)
-			if err != nil {
-				log.Error(c.Request.Context(), "Failed to upgrade to WebSocket", zap.Error(err))
-				return
-			}
-
-			// 添加连接到连接池
-			websocket.AddClient(conn)
-
-			// 启动goroutine处理WebSocket消息
-			go websocket.HandleWebSocketMessages(conn)
-		},
-	)
-
-	// Health check endpoint
-	r.GET(
-		"/health", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"status": "ok"})
-		},
-	)
-
 	// 获取按来源统计的播放次数
 	r.GET(
 		"/api/dashboard/play-counts-by-source", func(c *gin.Context) {
@@ -557,6 +572,30 @@ func setupRouter(name string) *gin.Engine {
 			}
 
 			c.JSON(http.StatusOK, albums)
+		},
+	)
+
+	// 获取热门流派数据（按播放次数和曲目数）
+	genreService := genre.NewGenreService()
+	r.GET(
+		"/api/dashboard/top-genres", func(c *gin.Context) {
+			ctx := c.Request.Context()
+
+			// 获取限制参数，默认10个
+			limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+			if limit > 50 {
+				limit = 50 // 限制最大数量
+			}
+
+			// 获取热门流派的详细信息
+			genres, err := genreService.GetTopGenresWithDetails(ctx, limit)
+			if err != nil {
+				log.Error(ctx, "Failed to get top genres with details", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top genres with details"})
+				return
+			}
+
+			c.JSON(http.StatusOK, genres)
 		},
 	)
 
@@ -662,7 +701,7 @@ func setupRouter(name string) *gin.Engine {
 
 			// 调用logic层方法处理收藏逻辑
 			appleMusicFav, lastFmFav, err := trackService.SetTrackFavorite(
-				ctx, req.Artist, req.Album, req.Track, req.Source, req.Favorite,
+				ctx, req.Artist, req.Album, req.Track, req.Source, req.Favorite, model.TrackMetadata{},
 			)
 			if err != nil {
 				log.Error(ctx, "Failed to set track favorite", zap.Error(err))
@@ -676,6 +715,31 @@ func setupRouter(name string) *gin.Engine {
 					"lastfm":      lastFmFav,
 				},
 			)
+		},
+	)
+
+	// WebSocket endpoint
+	r.GET(
+		"/ws", func(c *gin.Context) {
+			// 升级HTTP连接到WebSocket连接
+			conn, err := websocket.UpgradeConnection(c.Writer, c.Request)
+			if err != nil {
+				log.Error(c.Request.Context(), "Failed to upgrade to WebSocket", zap.Error(err))
+				return
+			}
+
+			// 添加连接到连接池
+			websocket.AddClient(conn)
+
+			// 启动goroutine处理WebSocket消息
+			go websocket.HandleWebSocketMessages(conn)
+		},
+	)
+
+	// Health check endpoint
+	r.GET(
+		"/health", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		},
 	)
 
@@ -693,4 +757,18 @@ func StartHTTPServer(ctx context.Context, name string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// FillInTrendCycle FillInTrendCycle
+func FillInTrendCycle(rangeDays int) []string {
+	now := time.Now()
+	rangeDayList := make([]string, 0, rangeDays)
+	rangeDayList = append(rangeDayList, now.AddDate(0, 0, -rangeDays).Format("2006-01-02"))
+	start := now.AddDate(0, 0, -rangeDays)
+	for start.Before(now) {
+		start = start.AddDate(0, 0, 1)
+		rangeDayList = append(rangeDayList, start.Format("2006-01-02"))
+	}
+	rangeDayList = append(rangeDayList, now.AddDate(0, 0, 1).Format("2006-01-02"))
+	return rangeDayList
 }

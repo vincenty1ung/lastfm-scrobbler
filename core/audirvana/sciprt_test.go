@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/cache"
 	alog "github.com/vincenty1ung/lastfm-scrobbler/core/log"
 )
 
@@ -69,4 +70,30 @@ func TestGetNowPlayingTrackInfoFields(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestFindMataDataHandleCache(t *testing.T) {
+	state, err := GetState(context.Background())
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if state == common.PlayerStatePlaying {
+		audirvanaTrackInfo := GetNowPlayingTrackInfo(context.Background())
+		info := cache.FindMataDataHandle(context.Background(), audirvanaTrackInfo.Url)
+		fmt.Println(info.GetMusicBrainzTrackId())
+		fmt.Println(info.GetTrackNumber())
+		fmt.Println(info.GetArtists())
+		fmt.Println(info.GetAlbum())
+		fmt.Println(info.GetArtist())
+		fmt.Println(info.GetUniqueID())
+		fmt.Println(info.GetTitle())
+		fmt.Println(info.GetSource())
+		fmt.Println(info.GetComposer())
+		fmt.Println(info.GetGenre())
+		fmt.Println(info.GetDuration())
+		fmt.Println(info.GetReleaseDate())
+		fmt.Println(info.GetBundleID())
+	}
+
 }

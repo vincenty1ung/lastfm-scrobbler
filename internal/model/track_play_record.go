@@ -7,6 +7,20 @@ import (
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
 )
 
+// PlayTrendData represents data for play trend visualization
+type PlayTrendData struct {
+	Date  string `json:"date"`  // 日期
+	Count int    `json:"count"` // 播放次数
+	Size  int    `json:"size"`  // 气泡大小（可以和count相同，或者根据其他因素计算）
+}
+
+// HourlyPlayTrendData represents hourly play trend data for a specific date
+type HourlyPlayTrendData struct {
+	Date   string      `json:"date"`   // 日期
+	Total  int         `json:"total"`  // 当日总播放次数
+	Hourly map[int]int `json:"hourly"` // 按小时统计的播放次数，key为小时(0-23)，value为播放次数
+}
+
 type TrackPlayRecord struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`
 	Artist        string    `gorm:"index" json:"artist"`
@@ -58,15 +72,25 @@ func GetRecentPlayRecords(ctx context.Context, limit int) ([]*TrackPlayRecord, e
 }
 
 // GetRecentPlayRecordsByDays 获取指定天数内的播放记录
-func GetRecentPlayRecordsByDays(ctx context.Context, days int) ([]*TrackPlayRecord, error) {
+func GetRecentPlayRecordsByDays(ctx context.Context, days int) (map[string][]*TrackPlayRecord, error) {
 	var records []*TrackPlayRecord
 	// 计算从现在开始往前推指定天数的时间
-	startTime := time.Now().AddDate(0, 0, -days)
-	err := GetDB().WithContext(ctx).Where("play_time >= ?", startTime).Order("play_time DESC").Find(&records).Error
+	startTime := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
+	err := GetDB().WithContext(ctx).Where(
+		"strftime('%Y-%m-%d',`play_time`) > ?", startTime,
+	).Order("play_time DESC").Find(&records).Error
 	if err != nil {
 		return nil, err
 	}
-	return records, nil
+	result := make(map[string][]*TrackPlayRecord, len(records))
+	for _, data := range records {
+		format := data.PlayTime.Format("2006-01-02")
+		if _, ok := result[format]; !ok {
+			result[format] = make([]*TrackPlayRecord, 0)
+		}
+		result[format] = append(result[format], data)
+	}
+	return result, nil
 }
 
 // GetUnscrobbledRecordsWithPagination 分页获取未同步到Last.fm的播放记录
@@ -144,7 +168,7 @@ type TopAlbum struct {
 // GetTopAlbumsByPlayCount 获取按播放次数统计的热门专辑
 func GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) ([]*TopAlbum, error) {
 	var result []*TopAlbum
-	
+
 	// 计算时间范围
 	var startTime time.Time
 	if days > 0 {
@@ -153,18 +177,18 @@ func GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) ([]*TopAl
 
 	// 构建查询
 	query := GetDB().WithContext(ctx).Model(&TrackPlayRecord{})
-	
+
 	// 如果指定了时间范围，则添加时间条件
 	if days > 0 {
 		query = query.Where("play_time >= ?", startTime)
 	}
-	
+
 	err := query.Select("album, MIN(artist) as artist, COUNT(album) as play_count").
 		Group("album").
 		Order("play_count DESC").
 		Limit(limit).
 		Find(&result).Error
-		
+
 	if err != nil {
 		return nil, err
 	}
