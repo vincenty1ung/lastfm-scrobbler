@@ -1,5 +1,15 @@
 # 内存索引
 
+## 2025-09-15
+- **日期**: 2025-09-15
+  - **特性摘要**: 增强仪表板功能，添加新的图表类型和交互功能，同时实现流派名称的标准化处理
+  - **链接**: [仪表板增强和流派定制功能特性清单](memory/2025-09-15/dashboard_enhancement_and_genre_customization_feature_manifest.md)
+
+## 2025-09-13
+- **日期**: 2025-09-13
+  - **特性摘要**: 重构Track模型并优化参数，移除过时的TrackPlayCount模型，引入新的参数结构体
+  - **链接**: [Track模型增强和参数优化特性清单](memory/2025-09-13/track_model_enhancement_and_parameter_optimization_feature_manifest.md)
+
 ## 2025-09-11
 - **日期**: 2025-09-11
   - **特性摘要**: 实现曲目收藏功能，允许用户通过前端界面收藏正在播放的曲目，并在Apple Music和Last.fm上同步收藏状态
