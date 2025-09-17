@@ -37,7 +37,7 @@ func openDailyLogFile(dir string) (zapcore.WriteSyncer, error) {
 func createLumberJackLogger(filename string) zapcore.WriteSyncer {
 	lumberJackLogger := &lumberjack.Logger{
 		Filename:   filename, // 文件位置
-		MaxSize:    1,        // 进行切割之前,日志文件的最大大小(MB为单位)
+		MaxSize:    10,       // 进行切割之前,日志文件的最大大小(MB为单位)
 		MaxAge:     7,        // 保留旧文件的最大天数
 		MaxBackups: 10,       // 保留旧文件的最大个数
 		Compress:   true,     // 是否压缩/归档旧文件

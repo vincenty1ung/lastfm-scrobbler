@@ -238,6 +238,25 @@
         color: white;
       }
 
+      /* 全屏按钮样式 - 简约风格 */
+      .fullscreen-btn {
+        background: none;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: var(--text-secondary);
+        margin-left: 10px;
+      }
+
+      .fullscreen-btn:hover {
+        background-color: #f1f3f9;
+        color: var(--text-primary);
+        border-color: #bbb;
+      }
+
       .chart-container {
         height: 300px;
         position: relative;
@@ -452,6 +471,24 @@
         .chart-card {
           padding: 10px;
         }
+      }
+
+      /* 全屏按钮简约样式 */
+      .fullscreen-btn {
+        background-color: transparent;
+        border: 1px solid #d1d1d1;
+        border-radius: 4px;
+        color: #666;
+        padding: 4px 8px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .fullscreen-btn:hover {
+        background-color: #f0f0f0;
+        border-color: #a0a0a0;
+        color: #333;
       }
 
       /* 实时播放信息悬浮窗 */
@@ -781,6 +818,20 @@
             <canvas id="albumChart"></canvas>
           </div>
         </div>
+
+        <!-- 热门流派 -->
+        <div class="chart-card">
+          <div class="card-header">
+            <div class="card-title">口味流派</div>
+            <button id="genreChartFullscreenBtn" class="fullscreen-btn">
+              全屏
+            </button>
+          </div>
+          <div class="chart-container">
+            <canvas id="genreChart"></canvas>
+          </div>
+        </div>
+
         <!-- 播放趋势图 -->
         <div class="chart-card">
           <!-- <div class="chart-card" style="grid-column: span 2"> -->
@@ -792,26 +843,13 @@
                 <div class="time-filter active" data-range="30">30天</div>
                 <div class="time-filter" data-range="90">90天</div>
               </div>
-              <button id="trendChartFullscreenBtn" class="time-filter">
+              <button id="trendChartFullscreenBtn" class="fullscreen-btn">
                 全屏
               </button>
             </div>
           </div>
           <div class="chart-container">
             <canvas id="trendChart"></canvas>
-          </div>
-        </div>
-
-        <!-- 热门流派 -->
-        <div class="chart-card">
-          <div class="card-header">
-            <div class="card-title">口味流派</div>
-            <button id="genreChartFullscreenBtn" class="time-filter">
-              全屏
-            </button>
-          </div>
-          <div class="chart-container">
-            <canvas id="genreChart"></canvas>
           </div>
         </div>
       </div>
@@ -1887,6 +1925,8 @@
                     grid: { display: false },
                     ticks: {
                       autoSkip: false,
+                      //maxRotation: 60, // 恢复斜体显示
+                      //minRotation: 45, // 恢复斜体显示
                       callback: function (value) {
                         const label = this.getLabelForValue(value);
                         if (label && label.length > 15) {
@@ -2099,18 +2139,39 @@
               "rgba(189, 195, 199, 1)",
             ];
 
+            // 原始数据
+            let dataset = genres.map((g, i) => ({
+              genre: g,
+              count: counts[i],
+              bg: backgroundColors[i],
+              border: borderColors[i],
+              zh: genresNameZhs[i],
+            }));
+
+            // Fisher-Yates 洗牌算法随机打乱
+            for (let i = dataset.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [dataset[i], dataset[j]] = [dataset[j], dataset[i]];
+            }
+
+            // 拆分回数组
+            const shuffledGenres = dataset.map((item) => item.genre);
+            const shuffledCounts = dataset.map((item) => item.count);
+            const shuffledBackgroundColors = dataset.map((item) => item.bg);
+            const shuffledBorderColors = dataset.map((item) => item.border);
+            const shuffledGenresNameZhs = dataset.map((item) => item.zh);
+
             // 保存图表实例以便全屏时重新渲染
             window.genreChartInstance = new Chart(newCtx, {
               type: "polarArea",
               data: {
-                labels: genres,
+                labels: shuffledGenres,
                 datasets: [
                   {
                     label: "播放次数",
-                    data: counts,
-                    backgroundColor: backgroundColors,
-                    circular: true,
-                    borderColor: borderColors,
+                    data: shuffledCounts,
+                    backgroundColor: shuffledBackgroundColors,
+                    borderColor: shuffledBorderColors,
                     borderWidth: 1,
                   },
                 ],
@@ -2121,19 +2182,20 @@
                 plugins: {
                   legend: {
                     position: "left",
+                    labels: {
+                      font: {
+                        size: 10, // 字体变小
+                      },
+                      boxWidth: 9, // 小方块变小
+                      padding: 6, // legend 项之间的间距缩小
+                    },
                   },
                   tooltip: {
                     callbacks: {
-                      /* label: function (context) {
-                        return "《" + context[0].label + `》- ${genre_name_zh}`; // 专辑名
-                      } ,*/
-                      /* const label = context.label || "";
-                        const value = context.raw || 0;
-                        return `${label}: ${value} 次播放`; */
                       title: function (ctx) {
-                        const index = ctx[0].dataIndex; // tooltipItems 数组的第 0 个元素
-                        const genre_name_zh = genresNameZhs[index]; // 拿到对应中文名
-                        return ctx[0].label + `（ ${genre_name_zh} ）`; // 专辑名
+                        const index = ctx[0].dataIndex;
+                        const genre_name_zh = shuffledGenresNameZhs[index];
+                        return ctx[0].label + `（ ${genre_name_zh} ）`;
                       },
                     },
                   },
@@ -2144,12 +2206,13 @@
                       display: true,
                       centerPointLabels: true,
                       font: {
-                        size: 12,
+                        size: 8,
                       },
                     },
                     ticks: {
-                      backdropColor: "rgba(0, 0, 0, 0)",
+                      backdropColor: "rgba(0, 0, 0, 0.05)",
                     },
+                    // max: Math.max(...shuffledCounts) * 1.1, // 扩大 20% 半径
                   },
                 },
               },

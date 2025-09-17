@@ -60,11 +60,13 @@ func NormalizeChineseGenre(genre string) string {
 func GenreCustomFit(genre string) string {
 	switch genre {
 	case "Rock & Roll":
-		return "Rock And Roll"
+		return "Rock"
 	case "Singer/Songwriter":
 		return "Singer-Songwriter"
 	case "R&B/Soul":
 		return "R&B-Soul"
+	case "Prog-Rock/Art Rock":
+		return "Progressive Rock-Art Rock"
 		// todo add
 	}
 	return genre
