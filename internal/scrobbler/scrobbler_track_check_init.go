@@ -11,12 +11,7 @@ import (
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
 
-const (
-	percentScrobble = 0.55
-	defaultSleep    = 3
-	longSleep       = 60 // 休眠间隔六十秒
-	checkCount      = 100
-)
+
 
 var (
 	newTrackService = track.NewTrackService()
@@ -112,19 +107,4 @@ func _CheckPlayingTrack(ctx context.Context, playerTypes []common.PlayerType, st
 			go checker.CheckPlayingTrack(ctx, stop)
 		}
 	}
-}
-
-// AudirvanaCheckPlayingTrack 保持向后兼容
-func AudirvanaCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
-	_CheckPlayingTrack(ctx, []common.PlayerType{common.PlayerAudirvana}, stop)
-}
-
-// RoonCheckPlayingTrack 保持向后兼容
-func RoonCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
-	_CheckPlayingTrack(ctx, []common.PlayerType{common.PlayerRoon}, stop)
-}
-
-// AppleMusicCheckPlayingTrack 保持向后兼容
-func AppleMusicCheckPlayingTrack(ctx context.Context, stop <-chan struct{}) {
-	_CheckPlayingTrack(ctx, []common.PlayerType{common.PlayerAppleMusic}, stop)
 }

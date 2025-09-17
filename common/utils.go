@@ -71,3 +71,13 @@ func GenreCustomFit(genre string) string {
 	}
 	return genre
 }
+
+// 艺术家自定义适配
+func ArtistCustomFit(artist string) string {
+	switch artist {
+	case "Omnipotent Youth Society":
+		return "万能青年旅店"
+		// todo add
+	}
+	return artist
+}

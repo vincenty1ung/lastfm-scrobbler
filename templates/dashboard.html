@@ -497,7 +497,7 @@
         top: 20px;
         right: 20px;
         width: 300px;
-        background-color: var(--card-bg);
+        background-color: rgba(255, 255, 255, 0.95); /* 90% 不透明度 */
         border: 1px solid var(--border-color);
         border-radius: 10px;
         box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
@@ -595,8 +595,8 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin: -20px -20px 20px -20px;
-        padding: 15px 20px;
+        margin: -20px -20px 15px -20px;
+        padding: 8px 15px;
         border-bottom: 1px solid var(--border-color);
         cursor: move;
       }
@@ -604,23 +604,23 @@
       /* 正在播放控制按钮 */
       .now-playing-controls {
         display: flex;
-        gap: 10px;
+        gap: 5px;
       }
 
       /* 拖动把手 */
       .drag-handle {
         cursor: move;
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         color: #95a5a6;
-        padding: 0 5px;
+        padding: 0 3px;
       }
 
       /* 缩小把手 */
       .minimize-handle {
         cursor: pointer;
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         color: #95a5a6;
-        padding: 0 5px;
+        padding: 0 3px;
         font-weight: bold;
       }
 
@@ -687,13 +687,68 @@
       .favorite-button.unliked {
         color: #ccc;
       }
+
+      /* 播放进度条容器 */
+      .progress-container {
+        width: 100%;
+        margin: 15px 0 10px 0;
+        position: relative;
+      }
+
+      /* 进度条轨道 */
+      .progress-track {
+        width: 100%;
+        height: 6px;
+        background-color: #e9ecef;
+        border-radius: 3px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* 进度条已完成部分 */
+      .progress-fill {
+        height: 100%;
+        background-color: var(--primary-color);
+        border-radius: 3px;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      /* 进度条拖拽点 */
+      .progress-thumb {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        transform: translate(50%, -50%);
+        width: 12px;
+        height: 12px;
+        background-color: var(--primary-color);
+        border-radius: 50%;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+      }
+
+      .progress-track:hover .progress-thumb {
+        opacity: 1;
+      }
+
+      /* 播放进度时间显示 */
+      .progress-time {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-top: 5px;
+      }
     </style>
   </head>
   <body>
     <!-- 实时播放信息悬浮窗 -->
     <div id="nowPlaying">
       <div class="now-playing-header">
-        <h3>正在播放</h3>
+        <h4>正在播放</h4>
         <div class="now-playing-controls">
           <div class="drag-handle">⋮</div>
           <div class="minimize-handle">−</div>
@@ -712,6 +767,19 @@
         </div>
         <div class="track-album" id="trackAlbum"></div>
         <div class="track-artist" id="trackArtist"></div>
+
+        <!-- 播放进度显示 -->
+        <div class="progress-container">
+          <div class="progress-track" id="progressTrack">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-thumb" id="progressThumb"></div>
+          </div>
+          <div class="progress-time">
+            <span id="currentTime">00:00</span>
+            <span id="totalTime">00:00</span>
+          </div>
+        </div>
+
         <div class="track-source" id="trackSource"></div>
         <div class="favorite-indicators-container">
           <div class="favorite-indicators" id="favoriteIndicators"></div>
@@ -943,12 +1011,22 @@
           } else if (data.type === "stop") {
             // 隐藏正在播放的悬浮窗
             document.getElementById("nowPlaying").style.display = "none";
+            // 清除进度更新定时器
+            if (progressInterval) {
+              clearInterval(progressInterval);
+              progressInterval = null;
+            }
           }
         };
 
         // 连接关闭时的处理
         ws.onclose = function (event) {
           console.log("WebSocket连接已关闭");
+          // 清除进度更新定时器
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
           // 5秒后尝试重新连接
           setTimeout(connectWebSocket, 5000);
         };
@@ -956,18 +1034,80 @@
         // 连接错误时的处理
         ws.onerror = function (error) {
           console.log("WebSocket连接出错:", error);
+          // 清除进度更新定时器
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
         };
       }
 
       // 当前播放的曲目信息
       let currentTrackInfo = null;
       let currentSource = null;
+      let currentPosition = 0; // 当前播放位置
+      let trackDuration = 0; // 歌曲总时长
+      let progressInterval = null; // 进度更新定时器
+
+      // 格式化时间（秒转为mm:ss）
+      function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, "0")}:${secs
+          .toString()
+          .padStart(2, "0")}`;
+      }
+
+      // 更新播放进度显示
+      function updateProgressDisplay() {
+        if (trackDuration <= 0) return;
+
+        // 更新进度条
+        const progressPercent = (currentPosition / trackDuration) * 100;
+        document.getElementById("progressFill").style.width = `${Math.min(
+          progressPercent,
+          100
+        )}%`;
+
+        // 更新时间显示
+        document.getElementById("currentTime").textContent =
+          formatTime(currentPosition);
+        document.getElementById("totalTime").textContent =
+          formatTime(trackDuration);
+
+        // 更新当前位置
+        currentPosition += 1;
+
+        // 如果播放完成，清除定时器
+        if (currentPosition >= trackDuration) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+      }
 
       // 更新正在播放的信息
       function updateNowPlaying(source, data) {
         // 保存当前播放信息
         currentTrackInfo = data;
         currentSource = source;
+
+        // 重置播放进度
+        currentPosition = data.position || 0;
+        trackDuration = data.duration || 0;
+
+        // 清除之前的进度更新定时器
+        if (progressInterval) {
+          clearInterval(progressInterval);
+          progressInterval = null;
+        }
+
+        // 启动新的进度更新定时器（如果歌曲有持续时间）
+        if (trackDuration > 0) {
+          // 立即更新一次显示
+          updateProgressDisplay();
+          // 每秒更新一次进度
+          progressInterval = setInterval(updateProgressDisplay, 1000);
+        }
 
         // 显示悬浮窗
         document.getElementById("nowPlaying").style.display = "block";
@@ -1108,17 +1248,20 @@
       // 初始化正在播放悬浮窗的拖动和缩小功能
       function initNowPlayingDrag() {
         const nowPlaying = document.getElementById("nowPlaying");
-        const dragHandle = document.querySelector(".drag-handle");
+        const header = document.querySelector(".now-playing-header");
         const minimizeHandle = document.querySelector(".minimize-handle");
 
-        if (!nowPlaying || !dragHandle || !minimizeHandle) return;
+        if (!nowPlaying || !header || !minimizeHandle) return;
 
         let isDragging = false;
         let offsetX, offsetY;
         let originalX, originalY;
 
-        // 鼠标按下事件（拖动）
-        dragHandle.addEventListener("mousedown", function (e) {
+        // 鼠标按下事件（拖动）- 在整个标题栏都可以触发
+        header.addEventListener("mousedown", function (e) {
+          // 如果点击的是缩小按钮，则不触发拖动
+          if (e.target === minimizeHandle) return;
+
           isDragging = true;
           nowPlaying.classList.add("dragging");
 
