@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
+	"github.com/vincenty1ung/lastfm-scrobbler/config"
 )
 
 // PlayTrendData represents data for play trend visualization
@@ -21,20 +22,26 @@ type HourlyPlayTrendData struct {
 	Hourly map[int]int `json:"hourly"` // 按小时统计的播放次数，key为小时(0-23)，value为播放次数
 }
 
+// TrackPlayRecord 对应 track_play_records 表
 type TrackPlayRecord struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
-	Artist        string    `gorm:"index" json:"artist"`
-	AlbumArtist   string    `json:"album_artist"`
-	Track         string    `json:"track"`
-	Album         string    `json:"album"`
-	Duration      int64     `json:"duration"`
-	PlayTime      time.Time `json:"play_time"`
-	Scrobbled     bool      `gorm:"index" json:"scrobbled"` // 是否已同步到Last.fm
-	MusicBrainzID string    `json:"musicbrainz_id"`
-	TrackNumber   int64     `json:"track_number"`
-	Source        string    `gorm:"index" json:"source"` // 数据来源：Audirvana、Roon 或 Apple Music
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            int64     `gorm:"column:id;type:bigint;primaryKey;autoIncrement" json:"id"`
+	Artist        string    `gorm:"column:artist;type:varchar(255);not null;index:idx_track_play_records_artist" json:"artist"`
+	AlbumArtist   string    `gorm:"column:album_artist;type:varchar(255)" json:"album_artist"`
+	Track         string    `gorm:"column:track;type:varchar(255);not null" json:"track"`
+	Album         string    `gorm:"column:album;type:varchar(255);not null" json:"album"`
+	Duration      int64     `gorm:"column:duration;type:int" json:"duration"`
+	PlayTime      time.Time `gorm:"column:play_time;type:timestamp;not null;default:CURRENT_TIMESTAMP" json:"play_time"`
+	Scrobbled     bool      `gorm:"column:scrobbled;type:tinyint(1);not null;default:0;index:idx_track_play_records_scrobbled" json:"scrobbled"`
+	MusicBrainzID string    `gorm:"column:music_brainz_id;type:varchar(255)" json:"music_brainz_id"`
+	TrackNumber   int8      `gorm:"column:track_number;type:tinyint" json:"track_number"`
+	Source        string    `gorm:"column:source;type:varchar(100);not null;index:idx_track_play_records_source" json:"source"`
+	CreatedAt     time.Time `gorm:"column:created_at;type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt     time.Time `gorm:"column:updated_at;type:timestamp;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+// TableName sets the table name for the TrackPlayRecord model
+func (TrackPlayRecord) TableName() string {
+	return "track_play_records"
 }
 
 func InsertTrackPlayRecord(ctx context.Context, record *TrackPlayRecord) error {
@@ -46,7 +53,7 @@ func InsertTrackPlayRecord(ctx context.Context, record *TrackPlayRecord) error {
 	return GetDB().WithContext(ctx).Create(record).Error
 }
 
-func UpdateScrobbledStatus(ctx context.Context, id uint, scrobbled bool) error {
+func UpdateScrobbledStatus(ctx context.Context, id int64, scrobbled bool) error {
 	return GetDB().WithContext(ctx).Model(&TrackPlayRecord{}).Where("id = ?", id).Update("scrobbled", scrobbled).Error
 }
 
@@ -76,9 +83,19 @@ func GetRecentPlayRecordsByDays(ctx context.Context, days int) (map[string][]*Tr
 	var records []*TrackPlayRecord
 	// 计算从现在开始往前推指定天数的时间
 	startTime := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
-	err := GetDB().WithContext(ctx).Where(
-		"strftime('%Y-%m-%d',`play_time`) > ?", startTime,
-	).Order("play_time DESC").Find(&records).Error
+
+	// 根据数据库类型使用不同的日期函数
+	var err error
+	if config.ConfigObj.Database.Type == string(common.DatabaseTypeMySQL) {
+		err = GetDB().WithContext(ctx).Where(
+			"DATE_FORMAT(`play_time`, '%Y-%m-%d') > ?", startTime,
+		).Order("play_time DESC").Find(&records).Error
+	} else {
+		err = GetDB().WithContext(ctx).Where(
+			"strftime('%Y-%m-%d',`play_time`) > ?", startTime,
+		).Order("play_time DESC").Find(&records).Error
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -116,12 +133,12 @@ func GetUnscrobbledRecordsCount(ctx context.Context) (int64, error) {
 }
 
 // BatchUpdateScrobbledStatus 批量更新播放记录的同步状态
-func BatchUpdateScrobbledStatus(ctx context.Context, ids []uint, scrobbled bool) error {
+func BatchUpdateScrobbledStatus(ctx context.Context, ids []int64, scrobbled bool) error {
 	return GetDB().WithContext(ctx).Model(&TrackPlayRecord{}).Where("id IN ?", ids).Update("scrobbled", scrobbled).Error
 }
 
 // GetUnscrobbledRecordsByIds 通过ID列表获取未同步的播放记录
-func GetUnscrobbledRecordsByIds(ctx context.Context, ids []uint) ([]*TrackPlayRecord, error) {
+func GetUnscrobbledRecordsByIds(ctx context.Context, ids []int64) ([]*TrackPlayRecord, error) {
 	// 获取指定ID的未同步记录
 	var records []*TrackPlayRecord
 	err := GetDB().WithContext(ctx).Where("id IN ? AND scrobbled = ?", ids, false).Find(&records).Error

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/spf13/viper"
 )
 
@@ -14,6 +16,7 @@ type Config struct {
 	HTTP       HTTPConfig       `yaml:"http"`
 	Telemetry  TelemetryConfig  `yaml:"telemetry"`
 	Scrobblers []string         `yaml:"scrobblers"`
+	IsDev      bool             `yaml:"isDev"`
 }
 
 type ScrobblerConfig struct {
@@ -36,11 +39,28 @@ type MusixmatchConfig struct {
 }
 
 type DatabaseConfig struct {
-	Path string `yaml:"path"`
+	Type  string      `yaml:"type"` // "sqlite" or "mysql"
+	Path  string      `yaml:"path"`
+	Mysql MysqlConfig `yaml:"mysql"`
 }
 
 type HTTPConfig struct {
 	Port string `yaml:"port"`
+}
+
+type MysqlConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Database string `yaml:"database"`
+}
+
+func (m MysqlConfig) GetMysqlDSN() string {
+	return fmt.Sprintf(
+		"%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		m.User, m.Password, m.Host, m.Port, m.Database,
+	)
 }
 
 type TelemetryConfig struct {

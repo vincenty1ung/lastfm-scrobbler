@@ -15,7 +15,14 @@ musixmatch:
   apiKey: ""
 
 database:
+  type: "sqlite"  # "sqlite" or "mysql"
   path: ".storage/tracks.db"
+  mysql:
+    host: "localhost"
+    port: 3306
+    user: "user"
+    password: "password"
+    database: "lastfm_scrobbler"
 
 http:
   port: "8081"
@@ -25,3 +32,5 @@ telemetry:
 
 scrobblers:
   - "Apple Music"
+
+isDev: true

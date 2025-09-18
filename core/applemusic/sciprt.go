@@ -113,7 +113,7 @@ type (
 func (ti *TrackInfo) ToTrackMetadata() model.TrackMetadata {
 	return model.TrackMetadata{
 		AlbumArtist:   ti.AlbumArtist,
-		TrackNumber:   int64(ti.TrackNumber),
+		TrackNumber:   int8(ti.TrackNumber),
 		Duration:      ti.Duration,
 		Genre:         ti.Genre,
 		Composer:      ti.Composer,
@@ -121,7 +121,7 @@ func (ti *TrackInfo) ToTrackMetadata() model.TrackMetadata {
 		MusicBrainzID: "", // Apple Music doesn't provide this directly
 		Source:        "Apple Music",
 		BundleID:      ti.BundleIdentifier,
-		UniqueID:      fmt.Sprintf("%d", ti.DatabaseID),
+		UniqueID:      fmt.Sprintf("%d", ti.UniqueIdentifier),
 	}
 }
 

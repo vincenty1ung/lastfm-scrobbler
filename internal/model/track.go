@@ -14,27 +14,49 @@ import (
 )
 
 // Track represents a music track with play statistics and favorite status
-type Track struct {
-	ID              uint      `gorm:"primaryKey" json:"id"`
-	Artist          string    `gorm:"index;uniqueIndex:idx_artist_album_track" json:"artist"`
+/*type Track struct {
+	ID              int64     `gorm:"primaryKey" json:"id"`
+	Artist          string    `gorm:"index;uniqueIndex:uidx_artist_album_track" json:"artist"`
 	AlbumArtist     string    `gorm:"index" json:"album_artist"` // 专辑艺术家
-	Album           string    `gorm:"index;uniqueIndex:idx_artist_album_track" json:"album"`
-	Track           string    `gorm:"index;uniqueIndex:idx_artist_album_track" json:"track"`
-	TrackNumber     int64     `json:"track_number"`                // 曲目编号
-	Duration        int64     `json:"duration"`                    // 持续时间(秒)
-	Genre           string    `gorm:"index" json:"genre"`          // 流派
-	Composer        string    `json:"composer"`                    // 作曲家
-	ReleaseDate     string    `json:"release_date"`                // 发布日期
-	MusicBrainzID   string    `gorm:"index" json:"musicbrainz_id"` // MusicBrainz ID
-	PlayCount       int       `json:"play_count"`
-	IsAppleMusicFav bool      `json:"is_apple_music_fav"`       // 是否Apple Music喜欢
-	IsLastFmFav     bool      `json:"is_lastfm_fav"`            // 是否Last.fm喜欢
-	Source          string    `gorm:"index" json:"source"`      // 数据来源：Apple Music, Audirvana, Roon等
-	BundleID        string    `json:"bundle_id"`                // 应用标识符 (用于media-control)
-	UniqueID        string    `gorm:"index" json:"unique_id"`   // 唯一标识符 (用于media-control)
-	Version         int       `gorm:"default:1" json:"version"` // 乐观锁版本号
+	Album           string    `gorm:"index;uniqueIndex:uidx_artist_album_track" json:"album"`
+	Track           string    `gorm:"index;uniqueIndex:uidx_artist_album_track" json:"track"` // 歌曲名称
+	TrackNumber     int8      `json:"track_number"`                                           // 曲目编号
+	Duration        int64     `json:"duration"`                                               // 持续时间(秒)
+	Genre           string    `gorm:"index" json:"genre"`                                     // 流派
+	Composer        string    `json:"composer"`                                               // 作曲家
+	ReleaseDate     string    `json:"release_date"`                                           // 发布日期
+	MusicBrainzID   string    `gorm:"column:music_brainz_id;index" json:"musicbrainz_id"`     // MusicBrainz ID
+	PlayCount       int       `json:"play_count"`                                             // 播放次数
+	IsAppleMusicFav bool      `json:"is_apple_music_fav"`                                     // 是否Apple Music喜欢
+	IsLastFmFav     bool      `gorm:"column:is_last_fm_fav" json:"is_lastfm_fav"`             // 是否Last.fm喜欢
+	Source          string    `gorm:"index" json:"source"`                                    // 数据来源：Apple Music, Audirvana, Roon等
+	BundleID        string    `json:"bundle_id"`                                              // 应用标识符 (用于media-control)
+	UniqueID        string    `gorm:"index" json:"unique_id"`                                 // 唯一标识符 (用于media-control)
+	Version         int       `gorm:"default:1" json:"version"`                               // 乐观锁版本号
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+}*/
+type Track struct {
+	ID              int64     `gorm:"column:id;type:bigint;primaryKey;autoIncrement" json:"id"`
+	Artist          string    `gorm:"column:artist;type:varchar(255);not null;uniqueIndex:uidx_artist_album_track" json:"artist"`
+	Album           string    `gorm:"column:album;type:varchar(255);not null;index:idx_track_album;uniqueIndex:uidx_artist_album_track" json:"album"`
+	Track           string    `gorm:"column:track;type:varchar(255);not null;index:idx_track_track;uniqueIndex:uidx_artist_album_track" json:"track"`
+	PlayCount       int       `gorm:"column:play_count;type:int;default:0" json:"play_count"`
+	IsAppleMusicFav bool      `gorm:"column:is_apple_music_fav;type:tinyint(1);default:0" json:"is_apple_music_fav"`
+	IsLastFmFav     bool      `gorm:"column:is_last_fm_fav;type:tinyint(1);default:0" json:"is_last_fm_fav"`
+	Version         int       `gorm:"column:version;type:int;default:1" json:"version"`
+	AlbumArtist     string    `gorm:"column:album_artist;type:varchar(255)" json:"album_artist"`
+	TrackNumber     int8      `gorm:"column:track_number;type:tinyint" json:"track_number"`
+	Duration        int64     `gorm:"column:duration;type:int" json:"duration"`
+	Genre           string    `gorm:"column:genre;type:varchar(255);index:idx_track_genre" json:"genre"`
+	Composer        string    `gorm:"column:composer;type:varchar(255)" json:"composer"`
+	ReleaseDate     string    `gorm:"column:release_date;type:varchar(50)" json:"release_date"`
+	MusicBrainzID   string    `gorm:"column:music_brainz_id;type:varchar(255)" json:"music_brainz_id"`
+	Source          string    `gorm:"column:source;type:varchar(255);index:idx_track_source" json:"source"`
+	BundleID        string    `gorm:"column:bundle_id;type:varchar(255)" json:"bundle_id"`
+	UniqueID        string    `gorm:"column:unique_id;type:varchar(255);index:idx_track_unique_id" json:"unique_id"`
+	CreatedAt       time.Time `gorm:"column:created_at;type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt       time.Time `gorm:"column:updated_at;type:timestamp;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" json:"updated_at"`
 }
 
 // TableName sets the table name for the Track model
@@ -45,7 +67,7 @@ func (Track) TableName() string {
 // TrackMetadata represents metadata for a music track
 type TrackMetadata struct {
 	AlbumArtist   string `json:"album_artist"`   // 专辑艺术家
-	TrackNumber   int64  `json:"track_number"`   // 曲目编号
+	TrackNumber   int8   `json:"track_number"`   // 曲目编号
 	Duration      int64  `json:"duration"`       // 持续时间(秒)
 	Genre         string `json:"genre"`          // 流派
 	Composer      string `json:"composer"`       // 作曲家

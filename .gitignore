@@ -9,3 +9,4 @@
 /.tmp/
 /shell/bin/nowplaying-cli-mac
 /venv/
+internal/model/ddl

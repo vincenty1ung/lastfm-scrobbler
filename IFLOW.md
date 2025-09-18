@@ -130,6 +130,16 @@
 
 在运行程序前，需要配置 `config/config.yaml` 文件，填入 Last.fm 和 Musixmatch 的 API 密钥等信息。
 
+### 数据库配置说明
+
+项目支持 SQLite 和 MySQL 两种数据库类型，通过 `database.type` 配置项进行切换。
+
+对于 MySQL 数据库，有一个重要的配置项 `isDev`：
+- 当 `isDev: true` 时（开发环境），程序会自动进行数据库表结构迁移（AutoMigrate）
+- 当 `isDev: false` 时（生产环境），需要手动执行 SQL 语句来初始化数据库表结构
+
+对于 SQLite 数据库，无论 `isDev` 设置为何值，都会自动创建本地表。
+
 ## 构建
 
 ```bash

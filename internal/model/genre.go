@@ -8,25 +8,28 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"github.com/vincenty1ung/lastfm-scrobbler/common"
+	"github.com/vincenty1ung/lastfm-scrobbler/config"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/log"
 )
 
 // Genre represents a music genre
 type Genre struct {
-	Name      string    `gorm:"index;unique;not null" json:"name"` // 流派英文名称
-	NameZh    string    `json:"name_zh"`                           // 流派中文名称
-	Extra     string    `json:"extra"`                             // 额外信息
-	PlayCount int       `json:"play_count"`                        // 播放次数
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64     `gorm:"column:id;type:int;primaryKey;autoIncrement" json:"id"`
+	Name      string    `gorm:"column:name;type:varchar(255);not null;unique;index:idx_genre_name" json:"name"`
+	NameZh    string    `gorm:"column:name_zh;type:varchar(255)" json:"name_zh"`
+	Extra     string    `gorm:"column:extra;type:text" json:"extra"`
+	PlayCount int64     `gorm:"column:play_count;type:bigint" json:"play_count"`
+	CreatedAt time.Time `gorm:"column:created_at;type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at;type:timestamp;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" json:"updated_at"`
 }
 
 // TopGenre represents a top genre with play count
 type TopGenre struct {
 	TrackGenreName  string `json:"track_genre_name"`  // 流派英文名
-	TrackGenreCount int    `json:"track_genre_count"` // 流派播放次数
+	TrackGenreCount int64  `json:"track_genre_count"` // 流派播放次数
 	GenreNameZh     string `json:"genre_name_zh"`     // 流派中文名
-	GenreCount      int    `json:"genre_count"`       // 流派总播放次数
+	GenreCount      int64  `json:"genre_count"`       // 流派总播放次数
 }
 
 // TableName sets the table name for the Genre model
@@ -142,17 +145,38 @@ func GetTopGenresByPlayCount(ctx context.Context, limit int) ([]*Genre, error) {
 // GetTopGenresWithDetails returns the top genres with detailed information including track count
 func GetTopGenresWithDetails(ctx context.Context, limit int) ([]*TopGenre, error) {
 	var result []*TopGenre
-	err := GetDB().WithContext(ctx).Raw(`
-		select tg.track_genre_name, tg.track_genre_count, g.name_zh as genre_name_zh, g.play_count as genre_count
-		from (select genre as track_genre_name, sum(play_count) as track_genre_count
-			  from track
-			  where genre != ''
-			  group by genre
-			  order by track_genre_count desc limit ?) as tg
-				 left join genre as g on tg.track_genre_name = g.name`, limit).Scan(&result).Error
-	if err != nil {
-		return nil, err
+
+	// 根据数据库类型使用不同的SQL语法
+	if config.ConfigObj.Database.Type == string(common.DatabaseTypeMySQL) {
+		err := GetDB().WithContext(ctx).Raw(
+			`
+			select tg.track_genre_name, tg.track_genre_count, g.name_zh as genre_name_zh, g.play_count as genre_count
+			from (select genre as track_genre_name, sum(play_count) as track_genre_count
+				  from track
+				  where genre != ''
+				  group by genre
+				  order by track_genre_count desc limit ?) as tg
+				 left join genre as g on tg.track_genre_name = g.name`, limit,
+		).Scan(&result).Error
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := GetDB().WithContext(ctx).Raw(
+			`
+			select tg.track_genre_name, tg.track_genre_count, g.name_zh as genre_name_zh, g.play_count as genre_count
+			from (select genre as track_genre_name, sum(play_count) as track_genre_count
+				  from track
+				  where genre != ''
+				  group by genre
+				  order by track_genre_count desc limit ?) as tg
+				 left join genre as g on tg.track_genre_name = g.name`, limit,
+		).Scan(&result).Error
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return result, nil
 }
 

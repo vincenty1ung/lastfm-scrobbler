@@ -309,7 +309,7 @@ func (b *BasePlayerChecker) handleTrackScrobble(ctx context.Context, playerInfo 
 		PlayTime:      time.Unix(pushTrackScrobbleReq.Timestamp, 0),
 		Scrobbled:     true,
 		MusicBrainzID: pushTrackScrobbleReq.MusicBrainzTrackID,
-		TrackNumber:   pushTrackScrobbleReq.TrackNumber,
+		TrackNumber:   int8(pushTrackScrobbleReq.TrackNumber),
 		Source:        string(b.source),
 	}
 	_, err := lastfm.PushTrackScrobble(ctx, pushTrackScrobbleReq)
@@ -330,7 +330,7 @@ func (b *BasePlayerChecker) handleTrackScrobble(ctx context.Context, playerInfo 
 		Track:  playerInfo.GetTitle(),
 		TrackMetadata: model.TrackMetadata{
 			AlbumArtist:   playerInfo.GetAlbumArtist(),
-			TrackNumber:   playerInfo.GetTrackNumber(),
+			TrackNumber:   int8(playerInfo.GetTrackNumber()),
 			Duration:      playerInfo.GetDuration(),
 			Genre:         playerInfo.GetGenre(),
 			Composer:      playerInfo.GetComposer(),

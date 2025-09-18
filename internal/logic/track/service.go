@@ -3,8 +3,11 @@ package track
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/vincenty1ung/lastfm-scrobbler/core/applemusic"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/lastfm"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/log"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
 
@@ -36,7 +39,7 @@ type TrackService interface {
 	// SyncUnscrobbledRecords 同步未上报的数据到Last.fm并更新状态
 	SyncUnscrobbledRecords(ctx context.Context, limit int) ([]*model.TrackPlayRecord, error)
 	// SyncSelectedUnscrobbledRecords 同步选中的未同步记录到Last.fm
-	SyncSelectedUnscrobbledRecords(ctx context.Context, ids []uint) (
+	SyncSelectedUnscrobbledRecords(ctx context.Context, ids []int64) (
 		successCount int, failedRecords []*model.TrackPlayRecord, err error,
 	)
 	// SetAppleMusicFavorite 设置Apple Music喜欢状态
@@ -171,7 +174,7 @@ func (s *TrackServiceImpl) SyncUnscrobbledRecords(ctx context.Context, limit int
 }
 
 // SyncSelectedUnscrobbledRecords 同步选中的未同步记录到Last.fm
-func (s *TrackServiceImpl) SyncSelectedUnscrobbledRecords(ctx context.Context, ids []uint) (
+func (s *TrackServiceImpl) SyncSelectedUnscrobbledRecords(ctx context.Context, ids []int64) (
 	successCount int, failedRecords []*model.TrackPlayRecord, err error,
 ) {
 	// 获取指定ID的未同步记录
@@ -183,29 +186,28 @@ func (s *TrackServiceImpl) SyncSelectedUnscrobbledRecords(ctx context.Context, i
 		return 0, nil, nil
 	}
 
-	var successIDs []uint
+	var successIDs []int64
 
 	for _, record := range records {
-		// 调用Last.fm API上报数据
-		_, err := lastfm.PushTrackScrobble(
-			ctx, &lastfm.PushTrackScrobbleReq{
-				Artist:             record.Artist,
-				AlbumArtist:        record.AlbumArtist,
-				Track:              record.Track,
-				Album:              record.Album,
-				Duration:           record.Duration,
-				Timestamp:          record.PlayTime.Unix(),
-				MusicBrainzTrackID: record.MusicBrainzID,
-				TrackNumber:        record.TrackNumber,
-			},
-		)
+		// 创建Last.fm同步请求
+		req := &lastfm.PushTrackScrobbleReq{
+			Artist:             record.Artist,
+			AlbumArtist:        record.AlbumArtist,
+			Track:              record.Track,
+			Album:              record.Album,
+			Duration:           record.Duration,
+			Timestamp:          record.PlayTime.Unix(),
+			MusicBrainzTrackID: record.MusicBrainzID,
+			TrackNumber:        int64(record.TrackNumber),
+		}
+
+		_, err := lastfm.PushTrackScrobble(ctx, req)
 		if err != nil {
-			// 记录失败的记录
+			log.Error(ctx, "Failed to scrobble track", zap.String("track", record.Track), zap.Error(err))
 			failedRecords = append(failedRecords, record)
 			continue
 		}
 
-		// 记录成功的ID
 		successIDs = append(successIDs, record.ID)
 	}
 

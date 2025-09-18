@@ -29,6 +29,14 @@ const (
 	PlayerAppleMusic PlayerType = "Apple Music"
 )
 
+// DatabaseType 定义数据库类型
+type DatabaseType string
+
+const (
+	DatabaseTypeSQLite DatabaseType = "sqlite"
+	DatabaseTypeMySQL  DatabaseType = "mysql"
+)
+
 /*
 var GenreMap = map[string]string{
 	// 流行

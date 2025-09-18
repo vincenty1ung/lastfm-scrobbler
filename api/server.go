@@ -657,8 +657,14 @@ func setupRouter(name string) *gin.Engine {
 				return
 			}
 
-			// 调用logic层方法同步选中的记录
-			successCount, failedRecords, err := trackService.SyncSelectedUnscrobbledRecords(ctx, req.IDs)
+			// 将 req.IDs 从 []uint 转换为 []int64
+		ids := make([]int64, len(req.IDs))
+		for i, id := range req.IDs {
+			ids[i] = int64(id)
+		}
+
+		// 调用logic层方法同步选中的记录
+			successCount, failedRecords, err := trackService.SyncSelectedUnscrobbledRecords(ctx, ids)
 			if err != nil {
 				log.Error(ctx, "Failed to sync selected unscrobbled records", zap.Error(err))
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sync records"})

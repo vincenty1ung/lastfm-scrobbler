@@ -107,3 +107,8 @@ func (l *customLogger) Trace(
 		)
 	}
 }
+
+// MysqlDSN generates a MySQL DSN from the provided configuration
+func MysqlDSN(dsn string) string {
+	return dsn
+}

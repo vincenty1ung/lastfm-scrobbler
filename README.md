@@ -107,7 +107,14 @@ musixmatch:
   apiKey: 4xxxx5xxxxx81b6654790
 
 database:
+  type: "sqlite"  # "sqlite" or "mysql"
   path: ".storage/tracks.db"
+  mysql:
+    host: "localhost"
+    port: 3306
+    user: "user"
+    password: "password"
+    database: "lastfm_scrobbler"
 
 http:
   port: "8081"
@@ -119,6 +126,8 @@ scrobblers:
   - "Apple Music"
   - "Audirvana"
   - "Roon"
+
+isDev: true  # 开发环境自动初始化数据库表结构，生产环境需要手动执行SQL语句
 ```
 
 ### 步骤二: 安装依赖工具

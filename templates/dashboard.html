@@ -331,12 +331,16 @@
       }
 
       .track-title {
-        font-weight: 600;
-        margin-bottom: 5px;
+        font-weight: 500;
+        /* margin-bottom: 3px; */
       }
 
       .track-artist {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+      }
+      .track-album {
+        font-size: 0.6rem;
         color: var(--text-secondary);
       }
 
@@ -496,7 +500,7 @@
         position: fixed;
         top: 20px;
         right: 20px;
-        width: 300px;
+        width: 240px;
         background-color: rgba(255, 255, 255, 0.95); /* 90% 不透明度 */
         border: 1px solid var(--border-color);
         border-radius: 10px;
@@ -530,11 +534,12 @@
 
       /* 调整悬浮窗内容区域的最小高度 */
       #nowPlayingInfo {
-        min-height: 120px;
+        min-height: 100px;
       }
 
       /* 喜欢状态指示器容器 */
       .favorite-indicators-container {
+        font-size: 0.5em;
         margin-top: 10px;
         text-align: right; /* 右对齐 */
       }
@@ -761,12 +766,11 @@
             class="favorite-button unliked"
             id="favoriteButton"
             title="添加到喜欢"
-          >
-            ♡
-          </button>
+          ></button>
         </div>
-        <div class="track-album" id="trackAlbum"></div>
+
         <div class="track-artist" id="trackArtist"></div>
+        <div class="track-album" id="trackAlbum">-</div>
 
         <!-- 播放进度显示 -->
         <div class="progress-container">
@@ -1117,21 +1121,27 @@
         let sourceText = "";
 
         if (source === "Audirvana") {
-          document.getElementById("trackTitle").textContent = data.title;
-          document.getElementById("trackAlbum").textContent = data.album;
-          document.getElementById("trackArtist").textContent = data.artist;
+          document.getElementById("trackTitle").textContent = " " + data.title;
+          document.getElementById("trackAlbum").textContent =
+            "《 " + data.album + "》";
+          document.getElementById("trackArtist").textContent =
+            " - " + data.artist;
           sourceClass = "source-audirvana";
           sourceText = "Audirvana";
         } else if (source === "Roon") {
-          document.getElementById("trackTitle").textContent = data.title;
-          document.getElementById("trackAlbum").textContent = data.album;
-          document.getElementById("trackArtist").textContent = data.artist;
+          document.getElementById("trackTitle").textContent = " " + data.title;
+          document.getElementById("trackAlbum").textContent =
+            "《 " + data.album + " 》";
+          document.getElementById("trackArtist").textContent =
+            " - " + data.artist;
           sourceClass = "source-roon";
           sourceText = "Roon";
         } else if (source === "Apple Music") {
-          document.getElementById("trackTitle").textContent = data.title;
-          document.getElementById("trackAlbum").textContent = data.album;
-          document.getElementById("trackArtist").textContent = data.artist;
+          document.getElementById("trackTitle").textContent = " " + data.title;
+          document.getElementById("trackAlbum").textContent =
+            "《 " + data.album + " 》";
+          document.getElementById("trackArtist").textContent =
+            " - " + data.artist;
           sourceClass = "source-applemusic";
           sourceText = "AppleMusic";
         }
@@ -1742,7 +1752,7 @@
                   y: {
                     type: "linear",
                     min: -1,
-                    max: 24.7,
+                    max: 24.99,
                     ticks: {
                       stepSize: 1,
                       maxRotation: 60,

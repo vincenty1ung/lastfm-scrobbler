@@ -56,7 +56,7 @@ func syncRecords(cmd *cobra.Command, args []string) error {
 			Duration:           record.Duration,
 			Timestamp:          record.PlayTime.Unix(),
 			MusicBrainzTrackID: record.MusicBrainzID,
-			TrackNumber:        record.TrackNumber,
+			TrackNumber:        int64(record.TrackNumber),
 		}
 
 		_, err := lastfm.PushTrackScrobble(context.Background(), req)
