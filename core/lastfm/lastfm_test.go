@@ -31,7 +31,7 @@ func init() {
 		}
 	}
 	if configLoaded {
-		_ = log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
+		_, _ = log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
 		// 只有在配置加载成功时才初始化API
 		if config.ConfigObj.Lastfm.ApiKey != "" {
 			InitLastfmApi(

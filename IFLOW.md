@@ -9,6 +9,7 @@
 3. **播放统计**: 统计每首曲目的播放次数，使用乐观锁机制保证并发安全。
 4. **数据同步**: 将未同步到 Last.fm 的播放记录进行同步，并标记同步状态。
 5. **实时播放信息推送**: 通过 WebSocket 实现实时推送当前播放信息到前端页面。
+6. **Redis缓存优化**: 实现Redis缓存机制，优化Last.fm收藏状态查询性能，减少API调用次数。
 
 ## 主要技术栈
 
@@ -24,6 +25,8 @@
   - `github.com/milindmadhukar/go-musixmatch` - Musixmatch API 客户端 (当前被注释)
   - `github.com/andybrewer/mack` - AppleScript 执行
   - `github.com/gorilla/websocket` - WebSocket 支持
+  - `github.com/redis/go-redis/v9` - Redis 客户端
+  - `github.com/redis/go-redis/extra/redisotel/v9` - Redis OpenTelemetry 集成
   - `gorm.io/gorm` - ORM 框架
   - `gorm.io/driver/sqlite` - SQLite 驱动
   - `go.opentelemetry.io/otel` - OpenTelemetry SDK
@@ -35,11 +38,13 @@
 - `core/`: 核心模块目录
   - `core/applesciprt/`: AppleScript 执行模块
   - `core/audirvana/`: 与 Audirvana 应用交互的模块，通过 AppleScript 获取播放信息
+  - `core/cache/`: 缓存模块
   - `core/db/`: 数据库连接和初始化模块
   - `core/exec/`: 执行模块，包括元数据处理缓存
   - `core/lastfm/`: Last.fm API 客户端封装
   - `core/log/`: 日志模块，基于 Zap 实现
   - `core/musixmatch/`: Musixmatch API 客户端封装
+  - `core/redis/`: Redis 客户端封装，包括日志记录和链路跟踪
   - `core/roon/`: 与 Roon 应用交互的模块
   - `core/telemetry/`: 链路跟踪模块，集成 OpenTelemetry 实现分布式追踪
   - `core/websocket/`: WebSocket 模块，处理实时消息推送
@@ -124,6 +129,21 @@
 - 实时播放信息展示（页面右上角悬浮窗）
 - 连接断开后的自动重连机制
 
+### Redis缓存优化
+
+在 `core/redis/` 目录中实现 Redis 客户端封装，包括：
+- `core/redis/redis.go`: Redis 客户端初始化和连接管理
+- `core/redis/logger.go`: Redis 日志记录器，提供与数据库模块一致的日志格式
+- `core/redis/hook.go`: Redis 钩子实现，集成自定义日志记录和 OpenTelemetry 链路跟踪
+
+Redis 缓存功能特点：
+- 为 `IsFavorite` 函数添加缓存支持，缓存键格式为 `cache:isFavorite:lastfm:{artist}:{track}`
+- 设置4分钟缓存过期时间，平衡性能和数据新鲜度
+- 实现智能缓存清除机制，在调用 `SetFavorite` 时自动清除对应缓存
+- 集成 OpenTelemetry 链路跟踪，提供完整的 Redis 操作监控
+- 实现慢查询检测，单个命令100ms阈值，管道操作200ms阈值
+- 复用链路ID进行日志记录，便于问题排查和性能分析
+
 # 构建和运行
 
 ## 配置
@@ -139,6 +159,17 @@
 - 当 `isDev: false` 时（生产环境），需要手动执行 SQL 语句来初始化数据库表结构
 
 对于 SQLite 数据库，无论 `isDev` 设置为何值，都会自动创建本地表。
+
+### Redis配置说明
+
+项目支持 Redis 缓存功能，通过 `redis` 配置项进行配置：
+- `host`: Redis 服务器地址
+- `port`: Redis 服务器端口
+- `username`: Redis 用户名（可选）
+- `password`: Redis 密码（可选）
+- `db`: Redis 数据库编号
+
+如果 Redis 配置有效，程序将自动启用缓存功能，优化 Last.fm 收藏状态查询性能。
 
 ## 构建
 

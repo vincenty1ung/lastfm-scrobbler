@@ -50,7 +50,7 @@ func newGenerateReportCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// 初始化配置和数据库
 			config.InitConfig("config/config_bak.yaml")
-			logger := log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, nil)
+			logger, _ := log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, nil)
 			if err := model.InitDB(config.ConfigObj.Database.Path, logger); err != nil {
 				return err
 			}
@@ -73,7 +73,7 @@ func newScheduleReportCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// 初始化配置和数据库
 			config.InitConfig("config/config_bak.yaml")
-			logger := log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, nil)
+			logger, _ := log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, nil)
 			if err := model.InitDB(config.ConfigObj.Database.Path, logger); err != nil {
 				return err
 			}
@@ -107,7 +107,7 @@ func newGenerateRecommendationsCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// 初始化配置和数据库
 			config.InitConfig("config/config_bak.yaml")
-			logger := log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, nil)
+			logger, _ := log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, nil)
 			if err := model.InitDB(config.ConfigObj.Database.Path, logger); err != nil {
 				return err
 			}

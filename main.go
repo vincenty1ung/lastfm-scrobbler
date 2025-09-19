@@ -12,6 +12,7 @@ import (
 	"github.com/vincenty1ung/lastfm-scrobbler/cmd"
 	"github.com/vincenty1ung/lastfm-scrobbler/config"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/log"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/redis"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/telemetry"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/cache"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
@@ -60,15 +61,18 @@ func initServer() error {
 	defer stop()
 	c := make(chan struct{})
 	config.InitConfig(*configFile)
-	logger := log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
+	dbLogger, redisLogger := log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
 
 	// Initialize telemetry
 	if err := telemetry.Init(config.ConfigObj.Telemetry); err != nil {
 		return fmt.Errorf("failed to initialize telemetry: %w", err)
 	}
 
+	// Initialize Redis
+	redis.InitRedis(config.ConfigObj.Redis, redisLogger)
+
 	// Initialize database
-	if err := model.InitDB(config.ConfigObj.Database.Path, logger); err != nil {
+	if err := model.InitDB(config.ConfigObj.Database.Path, dbLogger); err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 

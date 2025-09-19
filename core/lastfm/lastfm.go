@@ -4,20 +4,25 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	redisgo "github.com/redis/go-redis/v9"
 	"github.com/shkh/lastfm-go/lastfm"
 	"go.uber.org/zap"
 
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
 	"github.com/vincenty1ung/lastfm-scrobbler/config"
 	alog "github.com/vincenty1ung/lastfm-scrobbler/core/log"
+	coreredisclient "github.com/vincenty1ung/lastfm-scrobbler/core/redis"
 )
 
 var (
-	lastfmApi = new(Api)
+	lastfmApi    = new(Api)
+	_redisClient *redisgo.Client
 )
 
 type Api struct {
@@ -141,6 +146,7 @@ func init() {
 func InitLastfmApi(
 	ctx context.Context, apiKey, apiSecret, userLoginToken string, isMobile bool, userUsername, userPassword string,
 ) {
+	_redisClient = coreredisclient.GetRedisClient()
 	lastfmApi.Api = lastfm.New(apiKey, apiSecret)
 	if isMobile {
 		err := lastfmApi.Login(userUsername, userPassword)
@@ -320,12 +326,25 @@ func TrackUpdateNowPlaying(ctx context.Context, req *TrackUpdateNowPlayingReq) e
 
 // IsFavorite checks if the track is loved/favorited in Last.fm
 func IsFavorite(ctx context.Context, artist, track string) (bool, error) {
+	alog.Info(ctx, "Checking if track is loved", zap.String("artist", artist), zap.String("track", track))
+
+	// Generate Redis key
+	redisKey := fmt.Sprintf("cache:isFavorite:lastfm:%s:%s", artist, track)
 	// 如果一直都没有被点赞每秒都会一直被调用，是不是可以用redis去设置缓存大概4分钟，这样每秒的播放如果一直没有被喜欢可以等他自己过期
 	// 如果过程中调用SetFavorite，可以删除这个缓存，之后也可以从读取到
 	// reids使用的key参考样例 cache:isFavorite:lastfm:{artist}:{track}
-	// redis使用gredis 在core抽象redis包包含初始化 client的、初始化、创建
+	// redis使用github.com/redis/go-redis. go-redis,在core抽象redis包包含初始化 client的、初始化、创建
 	// reids相关的配置在config中加入
-	alog.Info(ctx, "Checking if track is loved", zap.String("artist", artist), zap.String("track", track))
+	// Try to get value from Redis cache first
+	if val, err := _redisClient.Get(ctx, redisKey).Result(); err == nil {
+		// Cache hit
+		isLoved := val == "true"
+		alog.Info(ctx, "Track loved status (from cache)", zap.Bool("isLoved", isLoved))
+		return isLoved, nil
+	} else if !errors.Is(err, redisgo.Nil) {
+		// Redis error (not a cache miss)
+		alog.Info(ctx, "Redis error when getting cached favorite status", zap.Error(err))
+	}
 
 	// 检查API是否已初始化
 	if lastfmApi == nil || lastfmApi.Api == nil {
@@ -354,6 +373,18 @@ func IsFavorite(ctx context.Context, artist, track string) (bool, error) {
 	// UserLoved字段为"1"表示已收藏，"0"表示未收藏
 	isLoved := result.UserLoved == "1"
 	alog.Info(ctx, "Track loved status", zap.Bool("isLoved", isLoved))
+
+	// Cache the result in Redis for 4 minutes
+	{
+		cacheValue := "false"
+		if isLoved {
+			cacheValue = "true"
+		}
+		// Set cache with 4-minute expiration
+		if err := _redisClient.Set(ctx, redisKey, cacheValue, 4*time.Minute).Err(); err != nil {
+			alog.Warn(ctx, "Failed to cache favorite status", zap.Error(err))
+		}
+	}
 
 	return isLoved, nil
 }
@@ -398,6 +429,14 @@ func SetFavorite(ctx context.Context, artist, track string, favorited bool) erro
 			return err
 		}
 		alog.Info(ctx, "Track unloved successfully")
+	}
+
+	// Delete cache entry for this track
+	{
+		redisKey := fmt.Sprintf("cache:isFavorite:lastfm:%s:%s", artist, track)
+		if err := _redisClient.Del(ctx, redisKey).Err(); err != nil {
+			alog.Warn(ctx, "Failed to delete cached favorite status", zap.Error(err))
+		}
 	}
 
 	return nil

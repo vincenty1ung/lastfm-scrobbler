@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	_ = alog.LogInit("./.logs", "info", make(<-chan struct{}))
+	_, _ = alog.LogInit("./.logs", "info", make(<-chan struct{}))
 }
 
 func TestAudirvana(t *testing.T) {

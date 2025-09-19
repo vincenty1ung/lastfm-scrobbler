@@ -111,7 +111,7 @@ func traceFields(ctx context.Context) []zap.Field {
 	}
 }
 
-func LogInit(logPath, infoLevel string, c <-chan struct{}) *zap.Logger {
+func LogInit(logPath, infoLevel string, c <-chan struct{}) (*zap.Logger, *zap.Logger) {
 	err := os.MkdirAll(logPath, 0755)
 	if err != nil && !os.IsExist(err) {
 		fmt.Println("Error occurred:", err.Error())
@@ -168,7 +168,10 @@ func LogInit(logPath, infoLevel string, c <-chan struct{}) *zap.Logger {
 		// zap.Development(),
 	)
 	return zap.New(
-		core, zap.AddCaller(), zap.AddCallerSkip(5), zap.Development(),
-		// zap.Development(),
-	)
+			core, zap.AddCaller(), zap.AddCallerSkip(5), zap.Development(),
+			// zap.Development(),
+		), zap.New(
+			core, zap.AddCaller(), zap.AddCallerSkip(8), zap.Development(),
+			// zap.Development(),
+		)
 }

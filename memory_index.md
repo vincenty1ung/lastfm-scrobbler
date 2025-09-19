@@ -1,5 +1,10 @@
 # 记忆索引
 
+## 2025-09-19
+- **日期**: 2025-09-19
+  - **特性摘要**: 为Redis客户端实现完整的链路跟踪和日志记录功能，包括自定义日志钩子、OpenTelemetry集成、慢查询检测等，与数据库模块保持一致的设计和实现
+  - **链接**: [Redis链路跟踪和日志记录功能特性清单](memory/2025-09-19/redis_tracing_and_logging_feature_manifest.md)
+
 ## 2025-09-18
 - **isDev 配置项特性清单**: 记录了 isDev 配置项的作用和使用场景，用于控制数据库表结构的初始化行为。 [链接](./memory/2025-09-18/isDev_configuration_feature_manifest.md)
 

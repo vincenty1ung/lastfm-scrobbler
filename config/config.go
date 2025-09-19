@@ -15,6 +15,7 @@ type Config struct {
 	Database   DatabaseConfig   `yaml:"database"`
 	HTTP       HTTPConfig       `yaml:"http"`
 	Telemetry  TelemetryConfig  `yaml:"telemetry"`
+	Redis      RedisConfig      `yaml:"redis"`
 	Scrobblers []string         `yaml:"scrobblers"`
 	IsDev      bool             `yaml:"isDev"`
 }
@@ -80,6 +81,14 @@ type TelemetryConfig struct {
 	OtlpHttpSecure bool `yaml:",optional"`
 	// Disabled indicates whether StartAgent starts the agent.
 	Disabled bool `yaml:",optional"`
+}
+
+type RedisConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
 }
 
 func InitConfig(filePath string) {

@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	_ = log.LogInit("./.logs", "info", make(<-chan struct{}))
+	_, _ = log.LogInit("./.logs", "info", make(<-chan struct{}))
 }
 
 func TestExecExiftoolHandl(t *testing.T) {

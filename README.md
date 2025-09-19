@@ -57,23 +57,165 @@
     - 同时，播放记录会被存储到本地数据库中，用于后续分析和同步。
     - 程序还会更新曲目的播放统计信息，使用乐观锁机制保证并发安全。
 
-6.  **实时播放信息推送**:
+6.  **Redis缓存优化**:
+
+    - 为了减少对 Last.fm API 的频繁调用，项目实现了 Redis 缓存机制。
+    - `IsFavorite` 函数会首先检查 Redis 缓存，如果缓存命中则直接返回结果，避免调用 Last.fm API。
+    - 缓存键采用 `cache:isFavorite:lastfm:{artist}:{track}` 格式，过期时间为4分钟。
+    - 当调用 `SetFavorite` 函数时，会自动清除对应曲目的缓存，确保数据一致性。
+
+7.  **实时播放信息推送**:
 
     - 程序通过 WebSocket 实时推送当前播放信息到前端页面。
     - 当获取到任何受支持播放器的播放信息时,会实时向所有连接的客户端推送消息。
     - 用户可以通过 Web 界面实时查看当前正在播放的音乐信息，并进行收藏操作。
     - WebSocket 服务端维护了一个连接池，能够向所有连接的客户端广播消息。
 
-7.  **数据持久化**:
+8.  **数据持久化**:
 
     - 播放记录和统计信息会被存储在本地 SQLite 数据库中。
     - 实现了播放次数统计功能，使用乐观锁机制保证并发安全。
     - 提供了未同步记录的手动同步功能。
     - 支持按艺术家、专辑、流派等维度进行数据查询和分析。
 
-8.  **后台运行**:
+9.  **后台运行**:
     - 整个程序被设计为一个守护进程(Daemon)。它会安静地在后台运行,直到接收到系统中断信号 (如 `Ctrl+C` 或关机命令) 时才会优雅地退出。
     - 项目内的 `shell/` 目录和 `.plist` 文件提供了完整的解决方案,用于通过 macOS 的 `launchd` 服务来管理程序的启停,实现开机自启和稳定运行。
+
+## 3. 如何使用
+
+### 步骤一: 配置
+
+这是使用该项目的关键第一步。
+
+1.  找到并打开 `config/config.yaml` 文件。
+2.  **重点修改 `lastfm` 部分**:
+    - `apiKey` 和 `sharedSecret`: 你需要去 [Last.fm API 官网](https://www.last.fm/api/account/create) 申请自己的 API key。
+    - `userUsername`: 你的 Last.fm 用户名。
+    - `userPassword`: 你的 Last.fm 密码。
+3.  **配置需要监控的播放器**:
+    - 在 `scrobblers` 部分添加需要监控的播放器列表，支持 "Apple Music"、"Audirvana" 和 "Roon"。
+4.  **配置Redis（可选）**:
+    - 在 `redis` 部分配置 Redis 连接信息，用于缓存 Last.fm 收藏状态查询结果。
+
+```yaml
+lastfm:
+  applicationName: lastfm-scrobbler
+  apiKey: 9c7d3bxxxxx6bab # <-- 替换成你自己的
+  sharedSecret: 80c9e7cxxxxxe0ec3b5 # <-- 替换成你自己的
+  registeredTo: vincxxxch1n
+  userLoginToken:
+  userUsername: vincentch1n # <-- 替换成你自己的
+  userPassword: your_xxxxword # <-- 替换成你自己的
+
+log:
+  path: ./.logs
+  level: info
+
+musixmatch:
+  apiKey: 4xxxx5xxxxx81b6654790
+
+database:
+  type: "sqlite"  # "sqlite" or "mysql"
+  path: ".storage/tracks.db"
+  mysql:
+    host: "localhost"
+    port: 3306
+    user: "user"
+    password: "password"
+    database: "lastfm_scrobbler"
+
+http:
+  port: "8081"
+
+telemetry:
+  name: "lastfm-scrobbler"
+
+redis:
+  host: "localhost"
+  port: 6379
+  username: ""
+  password: ""
+  db: 0
+
+scrobblers:
+  - "Apple Music"
+  - "Audirvana"
+  - "Roon"
+
+isDev: true  # 开发环境自动初始化数据库表结构，生产环境需要手动执行SQL语句
+```
+
+### 步骤二: 安装依赖工具
+
+根据不同播放器的支持需求，你需要安装相应的依赖工具：
+
+1.  **Roon 监控**:
+    - 项目使用 `media-control` 工具来监控 Roon 的播放状态。
+    - 你需要使用 Homebrew 安装 `media-control`:
+      ```shell
+      brew install media-control
+      ```
+
+2.  **Apple Music 监控**:
+    - 项目使用 AppleScript 来监控 Apple Music 的播放状态。
+    - 确保你的 macOS 系统已启用 AppleScript 支持（通常默认启用）。
+
+3.  **Audirvana 监控**:
+    - 项目使用 AppleScript 来监控 Audirvana 的播放状态。
+    - 确保你的 macOS 系统已启用 AppleScript 支持（通常默认启用）。
+
+4.  **Redis 缓存（可选）**:
+    - 项目使用 Redis 来缓存 Last.fm 收藏状态查询结果。
+    - 你需要安装并运行 Redis 服务器：
+      ```shell
+      brew install redis
+      brew services start redis
+      ```
+
+### 步骤三: 编译与运行
+
+你有两种方式来运行此项目:
+
+**方式一: 手动运行 (用于调试)**
+
+1.  确保你已经安装了 Go 语言环境。
+2.  在项目根目录下打开终端,执行编译:
+    ```shell
+    go build
+    ```
+3.  编译成功后,会生成一个名为 `lastfm-scrobbler` 的可执行文件。运行它:
+    ```shell
+    ./lastfm-scrobbler
+    ```
+4.  此时程序已在前台开始运行。你可以通过查看日志来了解其工作状态:
+    ```shell
+    tail -f .logs/go_lastfm-scrobbler.log
+    ```
+5.  程序启动后会提供Web界面，默认端口为8081，可以通过浏览器访问 `http://localhost:8081` 查看仪表板。
+
+**方式二: 作为后台服务运行 (推荐的日常使用方式)**
+
+项目提供了非常方便的 shell 脚本来一键完成服务的部署。
+
+1.  在项目根目录下打开终端。
+2.  执行构建和部署脚本:
+    ```shell
+    sh shell/script/build_lastfm-scrobblers_launchctl.sh
+    ```
+    这个脚本会自动编译项目,并生成符合 `launchd` 规范的 `.plist` 配置文件。
+3.  启动服务:
+
+    ```shell
+    sh shell/script/start_lastfm-scrobblers.sh
+    ```
+
+    现在,程序已经在后台运行,并且会随系统开机自动启动。
+
+4.  **其他管理命令**:
+    - 停止服务: `sh shell/script/stop_lastfm-scrobblers.sh`
+    - 查看日志: `tail -f .logs/go_lastfm-scrobbler.log`
+    - 访问Web界面: 打开浏览器访问 `http://localhost:8081`
 
 ## 3. 如何使用
 
@@ -216,6 +358,7 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
 │   ├── lastfm/              # Last.fm API 客户端封装
 │   ├── log/                 # 日志模块
 │   ├── musixmatch/          # Musixmatch API 客户端封装
+│   ├── redis/               # Redis 客户端封装，包括日志记录和链路跟踪
 │   ├── roon/                # 与 Roon 应用交互的模块
 │   ├── telemetry/           # 链路跟踪模块
 │   ├── watch/               # 文件监控模块
@@ -284,7 +427,14 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
 - 支持同步收藏状态到Apple Music和Last.fm
 - 通过Web界面可以查看和管理收藏状态
 
-### 5.8 并发监控架构优化
+### 5.8 Redis缓存优化
+- 实现了Redis缓存机制，优化Last.fm收藏状态查询性能
+- 在`core/redis/`目录中实现Redis客户端封装，包括连接管理、日志记录和链路跟踪
+- 为`IsFavorite`函数添加缓存支持，减少对Last.fm API的频繁调用
+- 实现了智能缓存清除机制，在调用`SetFavorite`时自动清除对应缓存
+- 集成OpenTelemetry链路跟踪，提供完整的Redis操作监控
+
+### 5.9 并发监控架构优化
 - 采用面向接口的设计，实现了灵活的播放器监控架构
 - 定义了 `PlayerInfoHandler`、`PlayerController` 和 `PlayerChecker` 三个核心接口
 - 实现了 `BasePlayerChecker` 基础检查器，提供通用的播放检查逻辑

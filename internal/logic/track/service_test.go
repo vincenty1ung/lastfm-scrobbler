@@ -35,7 +35,7 @@ func init() {
 		}
 	}
 	if configLoaded {
-		_ = log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
+		_, _ = log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
 		// 只有在配置加载成功时才初始化API
 		if config.ConfigObj.Lastfm.ApiKey != "" {
 			lastfm.InitLastfmApi(
@@ -46,7 +46,7 @@ func init() {
 		}
 	}
 
-	logger := log.LogInit("../../../"+config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, make(<-chan struct{}))
+	logger, _ := log.LogInit("../../../"+config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, make(<-chan struct{}))
 	err := model.InitDB("../../../"+config.ConfigObj.Database.Path, logger)
 	if err != nil {
 		panic(err)
@@ -67,16 +67,18 @@ func TestName(t *testing.T) {
 				log.Warn(ctx, "IsFavorite fail", zap.String("track", track.Track), zap.Error(err))
 			}
 			if favorite {
-				err := model.SetLastFmFavorite(model.SetFavoriteParams{
-	Ctx:        ctx,
-	Artist:     track.Artist,
-	Album:      track.Album,
-	Track:      track.Track,
-	IsFavorite: true,
-	TrackMetadata: model.TrackMetadata{
-		Source: track.Source,
-	},
-})
+				err := model.SetLastFmFavorite(
+					model.SetFavoriteParams{
+						Ctx:        ctx,
+						Artist:     track.Artist,
+						Album:      track.Album,
+						Track:      track.Track,
+						IsFavorite: true,
+						TrackMetadata: model.TrackMetadata{
+							Source: track.Source,
+						},
+					},
+				)
 				if err != nil {
 					panic(err)
 				}

@@ -14,7 +14,7 @@ func init() {
 func init() {
 	c := make(chan struct{})
 	config.InitConfig("../config/config_bak.yaml")
-	_ = log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
+	_, _ = log.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
 	InitMxmClient(config.ConfigObj.Musixmatch.ApiKey)
 }
 func TestGetMatcherLyrics(t *testing.T) {

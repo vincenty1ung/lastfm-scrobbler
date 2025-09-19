@@ -32,7 +32,7 @@ func init() {
 		}
 	}
 	if configLoaded {
-		_ = alog.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
+		_, _ = alog.LogInit(config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, c)
 		// 只有在配置加载成功时才初始化API
 		/*if config.ConfigObj.Lastfm.ApiKey != "" {
 			lastfm.InitLastfmApi(
@@ -43,7 +43,7 @@ func init() {
 		}*/
 	}
 
-	_ = alog.LogInit("../../"+config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, make(<-chan struct{}))
+	_, _ = alog.LogInit("../../"+config.ConfigObj.Log.Path, config.ConfigObj.Log.Level, make(<-chan struct{}))
 	/*err := model.InitDB("../../"+config.ConfigObj.Database.Path, logger)
 	if err != nil {
 		panic(err)

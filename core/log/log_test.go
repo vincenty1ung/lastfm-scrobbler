@@ -12,7 +12,7 @@ import (
 )
 
 func TInit() {
-	_ = LogInit("./.logs", "info", make(<-chan struct{}))
+	_, _ = LogInit("./.logs", "info", make(<-chan struct{}))
 }
 
 func TestLogInit(t *testing.T) {
