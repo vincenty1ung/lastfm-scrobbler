@@ -173,6 +173,16 @@ func IncrementTrackPlayCount(params IncrementTrackPlayCountParams) error {
 		updatedRecord := Track{
 			PlayCount: record.PlayCount + 1,
 			Version:   record.Version + 1,
+			// mata
+			TrackNumber:   record.TrackNumber,
+			Duration:      record.Duration,
+			Genre:         record.Genre,
+			Composer:      record.Composer,
+			ReleaseDate:   record.ReleaseDate,
+			MusicBrainzID: record.MusicBrainzID,
+			Source:        record.Source,
+			BundleID:      record.BundleID,
+			UniqueID:      record.UniqueID,
 		}
 
 		// 更新meta信息

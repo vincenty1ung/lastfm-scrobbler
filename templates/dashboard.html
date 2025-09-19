@@ -340,7 +340,7 @@
         color: var(--text-secondary);
       }
       .track-album {
-        font-size: 0.6rem;
+        font-size: 0.8rem;
         color: var(--text-secondary);
       }
 
@@ -2848,7 +2848,7 @@
       }
 
       // 定时更新函数
-      function createAutoUpdater(fetchFunction, interval = 5000) {
+      function createAutoUpdater(fetchFunction, interval = 60000) {
         return setInterval(fetchFunction, interval);
       }
 
@@ -2902,7 +2902,7 @@
         dashboardUpdater.clearAllTimers();
 
         // 设置定时器，每5秒刷新一次各个组件
-        dashboardUpdater.addTimer(createAutoUpdater(initStats, 5000)); // 每5秒更新统计卡片
+        dashboardUpdater.addTimer(createAutoUpdater(initStats, 60000)); // 每5秒更新统计卡片
         dashboardUpdater.addTimer(createAutoUpdater(initSourceChart, 60000)); // 每60秒更新播放来源扇形图
         dashboardUpdater.addTimer(
           createAutoUpdater(
@@ -2946,10 +2946,10 @@
                   .querySelector(".time-filter.active[data-ranking]")
                   .getAttribute("data-ranking") || "all"
               ),
-            5000
+            60000
           )
         ); // 每5秒更新排行榜
-        dashboardUpdater.addTimer(createAutoUpdater(refreshRecentPlays, 5000)); // 每5秒更新最近播放列表
+        dashboardUpdater.addTimer(createAutoUpdater(refreshRecentPlays, 60000)); // 每5秒更新最近播放列表
 
         // 添加时间过滤器点击事件
         document.querySelectorAll(".time-filter").forEach((filter) => {

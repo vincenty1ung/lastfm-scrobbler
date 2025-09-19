@@ -320,6 +320,11 @@ func TrackUpdateNowPlaying(ctx context.Context, req *TrackUpdateNowPlayingReq) e
 
 // IsFavorite checks if the track is loved/favorited in Last.fm
 func IsFavorite(ctx context.Context, artist, track string) (bool, error) {
+	// 如果一直都没有被点赞每秒都会一直被调用，是不是可以用redis去设置缓存大概4分钟，这样每秒的播放如果一直没有被喜欢可以等他自己过期
+	// 如果过程中调用SetFavorite，可以删除这个缓存，之后也可以从读取到
+	// reids使用的key参考样例 cache:isFavorite:lastfm:{artist}:{track}
+	// redis使用gredis 在core抽象redis包包含初始化 client的、初始化、创建
+	// reids相关的配置在config中加入
 	alog.Info(ctx, "Checking if track is loved", zap.String("artist", artist), zap.String("track", track))
 
 	// 检查API是否已初始化

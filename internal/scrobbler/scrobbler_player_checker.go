@@ -17,7 +17,6 @@ import (
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
 
-
 // NewBasePlayerChecker 创建基础播放器检查器
 func NewBasePlayerChecker(
 	controller PlayerController,
@@ -156,97 +155,9 @@ func (b *BasePlayerChecker) processPlayingTrack(ctx context.Context, playerInfo 
 	position := playerInfo.GetPosition()
 	duration := playerInfo.GetDuration()
 
-	// 查询数据库获取喜欢标志
-	appleMusicFav := false
-	lastFmFav := false
-	if getTrack, _ := b.trackService.GetTrack(
-		ctx, playerInfo.GetArtist(), playerInfo.GetAlbum(), playerInfo.GetTitle(),
-	); getTrack != nil {
-		appleMusicFav = getTrack.IsAppleMusicFav
-		lastFmFav = getTrack.IsLastFmFav
-		if !getTrack.IsAppleMusicFav {
-			favorite := b.controller.IsFavorite(ctx)
-			appleMusicFav = favorite
-			if favorite {
-				err := b.trackService.SetAppleMusicFavorite(
-					model.SetFavoriteParams{
-						Ctx:           ctx,
-						Artist:        getTrack.Artist,
-						Album:         getTrack.Album,
-						Track:         getTrack.Track,
-						IsFavorite:    true,
-						TrackMetadata: model.TrackMetadata{},
-					},
-				)
-				if err != nil {
-					log.Warn(
-						ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
-					)
-				}
-			}
-			// 更新lastfm 同步
-			if !getTrack.IsLastFmFav {
-				favorite, err := lastfm.IsFavorite(ctx, getTrack.Artist, getTrack.Track)
-				if err != nil {
-					log.Warn(
-						ctx, string(b.source)+" processPlayingTrack lastfm Favorite err", zap.Error(err),
-					)
-				}
-				lastFmFav = favorite
-				if favorite {
-					err := b.trackService.SetLastFmFavorite(
-						model.SetFavoriteParams{
-							Ctx:           ctx,
-							Artist:        getTrack.Artist,
-							Album:         getTrack.Album,
-							Track:         getTrack.Track,
-							IsFavorite:    true,
-							TrackMetadata: model.TrackMetadata{},
-						},
-					)
-					if err != nil {
-						log.Warn(
-							ctx, string(b.source)+" processPlayingTrack SetLastFmFavorite err", zap.Error(err),
-						)
-					}
+	// 查询数据库获取喜欢标志 检查喜欢状态并处理
+	appleMusicFav, lastFmFav := b.trackLikeCheckAndHandle(ctx, playerInfo)
 
-				}
-			}
-		}
-	} else {
-		// 检查Apple Music喜欢状态
-		if b.source == common.PlayerAppleMusic {
-			favorite := b.controller.IsFavorite(ctx)
-			appleMusicFav = favorite
-			if favorite {
-				err := b.trackService.SetAppleMusicFavorite(
-					model.SetFavoriteParams{
-						Ctx:           ctx,
-						Artist:        playerInfo.GetArtist(),
-						Album:         playerInfo.GetAlbum(),
-						Track:         playerInfo.GetTitle(),
-						IsFavorite:    true,
-						TrackMetadata: model.TrackMetadata{},
-					},
-				)
-				if err != nil {
-					log.Warn(
-						ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
-					)
-				}
-				_ = b.trackService.SetLastFmFavorite(
-					model.SetFavoriteParams{
-						Ctx:           ctx,
-						Artist:        playerInfo.GetArtist(),
-						Album:         playerInfo.GetAlbum(),
-						Track:         playerInfo.GetTitle(),
-						IsFavorite:    true,
-						TrackMetadata: model.TrackMetadata{},
-					},
-				)
-			}
-		}
-	}
 	wti := &websocket.WsTrackInfo{
 		Type:   "now_playing",
 		Source: string(b.source),
@@ -256,8 +167,8 @@ func (b *BasePlayerChecker) processPlayingTrack(ctx context.Context, playerInfo 
 			Artist     string `json:"artist"`
 			AppleMusic bool   `json:"apple_music"`
 			LastFM     bool   `json:"lastfm"`
-			Duration   int64  `json:"duration"` //歌曲时长，单位秒
-			Position   int64  `json:"position"` //歌曲当前播放位置，单位秒
+			Duration   int64  `json:"duration"` // 歌曲时长，单位秒
+			Position   int64  `json:"position"` // 歌曲当前播放位置，单位秒
 		}{
 			Title:      playerInfo.GetTitle(),
 			Album:      playerInfo.GetAlbum(),
@@ -285,6 +196,230 @@ func (b *BasePlayerChecker) processPlayingTrack(ctx context.Context, playerInfo 
 	}
 
 	b.previousTrack = tmpTrack
+}
+
+func (b *BasePlayerChecker) trackLikeCheckAndHandle(ctx context.Context, playerInfo PlayerInfoHandler) (bool, bool) {
+	appleMusicFav := false
+	lastFmFav := false
+	if getTrack, _ := b.trackService.GetTrack(
+		ctx, playerInfo.GetArtist(), playerInfo.GetAlbum(), playerInfo.GetTitle(),
+	); getTrack != nil {
+		appleMusicFav = getTrack.IsAppleMusicFav
+		lastFmFav = getTrack.IsLastFmFav
+		// 当前歌曲没有标记为苹果喜欢状态
+		if !getTrack.IsAppleMusicFav && !getTrack.IsLastFmFav {
+			switch b.source {
+			case common.PlayerAppleMusic:
+				// 检查Apple Music喜欢状态
+				favorite := b.controller.IsFavorite(ctx)
+				appleMusicFav = favorite
+				if favorite {
+					err := b.trackService.SetAppleMusicFavorite(
+						model.SetFavoriteParams{
+							Ctx:           ctx,
+							Artist:        getTrack.Artist,
+							Album:         getTrack.Album,
+							Track:         getTrack.Track,
+							IsFavorite:    true,
+							TrackMetadata: model.TrackMetadata{},
+						},
+					)
+					if err != nil {
+						log.Warn(
+							ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
+						)
+					}
+				}
+			case common.PlayerAudirvana:
+			}
+
+			// 更新lastfm 同步（因为苹果喜欢lastfm 也必须喜欢）
+			// dbLastFm喜欢状态 没有被设置过，检查lastfm是否喜欢
+			favorite, err := lastfm.IsFavorite(ctx, getTrack.Artist, getTrack.Track)
+			if err != nil {
+				log.Warn(
+					ctx, string(b.source)+" processPlayingTrack lastfm Favorite err", zap.Error(err),
+				)
+			}
+			lastFmFav = favorite
+			if favorite {
+				err := b.trackService.SetLastFmFavorite(
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        getTrack.Artist,
+						Album:         getTrack.Album,
+						Track:         getTrack.Track,
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
+				)
+				if err != nil {
+					log.Warn(
+						ctx, string(b.source)+" processPlayingTrack SetLastFmFavorite err", zap.Error(err),
+					)
+				}
+
+			}
+		} else if getTrack.IsLastFmFav && !getTrack.IsAppleMusicFav {
+			// 曾经在auridrvana 标记喜欢的歌曲，切换到Apple Music 播放，自动标记为Apple Music喜欢
+			if b.source == common.PlayerAppleMusic {
+				err := b.trackService.SetAppleMusicFavorite(
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        getTrack.Artist,
+						Album:         getTrack.Album,
+						Track:         getTrack.Track,
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
+				)
+				if err != nil {
+					log.Warn(
+						ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
+					)
+				}
+				appleMusicFav = true
+			}
+		} else if getTrack.IsAppleMusicFav {
+			if b.source == common.PlayerAppleMusic {
+				favorite := b.controller.IsFavorite(ctx)
+				appleMusicFav = favorite
+				if favorite && !getTrack.IsLastFmFav {
+					err := b.trackService.SetLastFmFavorite(
+						model.SetFavoriteParams{
+							Ctx:           ctx,
+							Artist:        getTrack.Artist,
+							Album:         getTrack.Album,
+							Track:         getTrack.Track,
+							IsFavorite:    true,
+							TrackMetadata: model.TrackMetadata{},
+						},
+					)
+					if err != nil {
+						log.Warn(
+							ctx, string(b.source)+" processPlayingTrack SetLastFmFavorite err", zap.Error(err),
+						)
+					}
+				}
+			}
+		} else if !getTrack.IsAppleMusicFav {
+			if b.source == common.PlayerAppleMusic {
+				favorite := b.controller.IsFavorite(ctx)
+				appleMusicFav = favorite
+				if favorite {
+					err := b.trackService.SetAppleMusicFavorite(
+						model.SetFavoriteParams{
+							Ctx:           ctx,
+							Artist:        getTrack.Artist,
+							Album:         getTrack.Album,
+							Track:         getTrack.Track,
+							IsFavorite:    true,
+							TrackMetadata: model.TrackMetadata{},
+						},
+					)
+					if err != nil {
+						log.Warn(
+							ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
+						)
+					}
+				}
+			}
+		}
+	} else {
+		// 检查Apple Music喜欢状态
+		if b.source == common.PlayerAppleMusic {
+			appleMusicFavorite := b.controller.IsFavorite(ctx)
+			lastfmFavorite, err := lastfm.IsFavorite(ctx, playerInfo.GetArtist(), playerInfo.GetTitle())
+			if err != nil {
+				log.Warn(
+					ctx, string(b.source)+" processPlayingTrack lastfm Favorite err", zap.Error(err),
+				)
+			}
+			appleMusicFav = appleMusicFavorite
+			lastfmFavorite = lastfmFavorite
+			if appleMusicFavorite {
+				err := b.trackService.SetAppleMusicFavorite(
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        playerInfo.GetArtist(),
+						Album:         playerInfo.GetAlbum(),
+						Track:         playerInfo.GetTitle(),
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
+				)
+				if err != nil {
+					log.Warn(
+						ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
+					)
+				}
+				_ = b.trackService.SetLastFmFavorite(
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        playerInfo.GetArtist(),
+						Album:         playerInfo.GetAlbum(),
+						Track:         playerInfo.GetTitle(),
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
+				)
+			}
+			if lastfmFavorite {
+				err := b.trackService.SetAppleMusicFavorite(
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        playerInfo.GetArtist(),
+						Album:         playerInfo.GetAlbum(),
+						Track:         playerInfo.GetTitle(),
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
+				)
+				if err != nil {
+					log.Warn(
+						ctx, string(b.source)+" processPlayingTrack SetAppleMusicFavorite err", zap.Error(err),
+					)
+				}
+				_ = b.trackService.SetLastFmFavorite(
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        playerInfo.GetArtist(),
+						Album:         playerInfo.GetAlbum(),
+						Track:         playerInfo.GetTitle(),
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
+				)
+			}
+		} else {
+			// dbLastFm喜欢状态 没有被设置过，检查lastfm是否喜欢
+			favorite, err := lastfm.IsFavorite(ctx, playerInfo.GetArtist(), playerInfo.GetTitle())
+			if err != nil {
+				log.Warn(
+					ctx, string(b.source)+" processPlayingTrack lastfm Favorite err", zap.Error(err),
+				)
+			}
+			lastFmFav = favorite
+			if favorite {
+				err := b.trackService.SetLastFmFavorite(
+					model.SetFavoriteParams{
+						Ctx:           ctx,
+						Artist:        playerInfo.GetArtist(),
+						Album:         playerInfo.GetAlbum(),
+						Track:         playerInfo.GetTitle(),
+						IsFavorite:    true,
+						TrackMetadata: model.TrackMetadata{},
+					},
+				)
+				if err != nil {
+					log.Warn(
+						ctx, string(b.source)+" processPlayingTrack SetLastFmFavorite err", zap.Error(err),
+					)
+				}
+			}
+		}
+	}
+	return appleMusicFav, lastFmFav
 }
 
 // handleTrackScrobble 处理曲目标记

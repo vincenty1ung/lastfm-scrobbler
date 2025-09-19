@@ -7,10 +7,10 @@
 		<key>PATH</key>
 		<string>/usr/local/sbin:/opt/local/bin:/opt/local/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/Apple/usr/bin:/opt/homebrew/bin</string>
 	</dict>
-	<key>KeepAlive</key>
-	<true/>
+	<!-- 唯一标识符 -->
 	<key>Label</key>
 	<string>com.vincent.lastfm-scrobbler.job</string>
+	<!-- 要运行的脚本 -->
 	<key>ProgramArguments</key>
 	<array>
 		<string>./shell/bin/lastfm-scrobbler</string>
@@ -20,7 +20,11 @@
 	</array>
     <key>WorkingDirectory</key>
     <string>/Users/vincent/Developer/code/other/lastfm-scrobbler/</string>
+    <!-- 在登录时自动启动 -->
 	<key>RunAtLoad</key>
 	<true/>
+	<!-- 保持存活，挂了自动重启 -->
+    <key>KeepAlive</key>
+    <true/>
 </dict>
 </plist>

@@ -61,9 +61,13 @@ func GenreCustomFit(genre string) string {
 	switch genre {
 	case "Rock & Roll":
 		return "Rock"
+	case "中國搖滾":
+		return "Rock"
 	case "Singer/Songwriter":
 		return "Singer-Songwriter"
 	case "R&B/Soul":
+		return "R&B-Soul"
+	case "R&B/骚灵乐":
 		return "R&B-Soul"
 	case "Prog-Rock/Art Rock":
 		return "Progressive Rock-Art Rock"
