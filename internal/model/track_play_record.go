@@ -8,6 +8,59 @@ import (
 	"github.com/vincenty1ung/lastfm-scrobbler/config"
 )
 
+// 索引优化建议:
+// 1. 对于按时间范围查询的场景，建议在 play_time 字段上创建索引
+//    例如: GetRecentPlayRecordsByDays 函数会按 play_time 进行筛选和排序
+// 2. 对于按艺术家和专辑查询的场景，建议创建复合索引 (artist, album)
+//    这可以优化同时按艺术家和专辑筛选的查询性能
+// 3. 对于按来源和同步状态查询的场景，建议创建复合索引 (source, scrobbled)
+//    这可以优化按来源筛选未同步记录的查询性能
+// 4. 对于按专辑艺术家和艺术家查询的场景，建议创建复合索引 (album_artist, artist)
+//    这可以优化同时按专辑艺术家和艺术家筛选的查询性能
+/*
+     优化策略                                                                                                  │
+ │                                                                                                              │
+ │     1. 避免在查询字段上使用函数：                                                                            │
+ │       最佳实践是重写查询条件，避免在 play_time 字段上使用函数。可以将查询改写为：                            │
+ │     1    SELECT * FROM `track_play_records`                                                                  │
+ │     2    WHERE `play_time` > '2025-08-20 23:59:59'                                                           │
+ │     3    ORDER BY play_time DESC;                                                                            │
+ │       这样可以直接利用 play_time 字段上的索引。                                                              │
+ │                                                                                                              │
+ │     2. 添加合适的索引：                                                                                      │
+ │       为 play_time 字段添加索引可以显著提高查询性能：                                                        │
+ │     1    CREATE INDEX idx_track_play_records_play_time ON track_play_records (play_time);                    │
+ │                                                                                                              │
+ │       如果经常需要按日期范围查询并按来源(source)过滤，可以考虑创建复合索引：                                 │
+ │     1    CREATE INDEX idx_track_play_records_play_time_source ON track_play_records (play_time,              │
+ │       source);                                                                                               │
+ │                                                                                                              │
+ │     3. 函数索引（MySQL 8.0+）：                                                                              │
+ │       如果您使用的是 MySQL 8.0 或更高版本，可以创建函数索引，直接针对 DATE_FORMAT 函数的结果建立索引：       │
+ │     1    CREATE INDEX idx_track_play_records_play_time_date ON track_play_records                            │
+ │       ((DATE_FORMAT(play_time, '%Y-%m-%d')));                                                                │
+ │       这样即使在查询中使用 DATE_FORMAT 函数，也能利用索引。                                                  │
+ │                                                                                                              │
+ │     4. 考虑分区表：                                                                                          │
+ │       如果数据量非常大且主要按日期查询，可以考虑按日期分区表，但这需要更复杂的表结构变更。                   │
+ │                                                                                                              │
+ │    实施建议                                                                                                  │
+ │                                                                                                              │
+ │     1. 首先添加 play_time 字段的索引：                                                                       │
+ │     1    CREATE INDEX idx_track_play_records_play_time ON track_play_records (play_time);                    │
+ │                                                                                                              │
+ │     2. 修改查询语句，避免在 play_time 字段上使用函数：                                                       │
+ │     1    SELECT * FROM `track_play_records`                                                                  │
+ │     2    WHERE `play_time` > '2025-08-20 23:59:59'                                                           │
+ │     3    ORDER BY play_time DESC;                                                                            │
+ │                                                                                                              │
+ │     3. 如果使用 MySQL 8.0+，可以考虑添加函数索引以支持现有查询模式：                                         │
+ │     1    CREATE INDEX idx_track_play_records_play_time_date ON track_play_records                            │
+ │       ((DATE_FORMAT(play_time, '%Y-%m-%d')));                                                                │
+ │                                                                                                              │
+ │    通过这些优化，查询性能应该会得到显著提升，避免全表扫描的问题。
+*/
+
 // PlayTrendData represents data for play trend visualization
 type PlayTrendData struct {
 	Date  string `json:"date"`  // 日期
@@ -197,7 +250,7 @@ func GetTopAlbumsByPlayCount(ctx context.Context, days int, limit int) ([]*TopAl
 
 	// 如果指定了时间范围，则添加时间条件
 	if days > 0 {
-		query = query.Where("play_time >= ?", startTime)
+		query = query.Where("DATE_FORMAT(`play_time`, '%Y-%m-%d') > ?", startTime.Format("2006-01-02"))
 	}
 
 	err := query.Select("album, MIN(artist) as artist, COUNT(album) as play_count").
