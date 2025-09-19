@@ -22,6 +22,22 @@
         --source-roon: #7f8c8d; /* 灰色 */
       }
 
+      /* 夜间模式 */
+      .dark-mode {
+        --primary-color: #5dade2;
+        --secondary-color: #58d68d;
+        --background-color: #1a1a1a;
+        --accent-color: #ec7063;
+        --text-primary: #f0f0f0;
+        --text-secondary: #bdc3c7;
+        --card-bg: #2c2c2c;
+        --border-color: #444444;
+        /* 播放渠道颜色 */
+        --source-applemusic: #ec7063; /* 红色 */
+        --source-audirvana: #bb8fce; /* 紫色 */
+        --source-roon: #bdc3c7; /* 灰色 */
+      }
+
       * {
         margin: 0;
         padding: 0;
@@ -225,36 +241,49 @@
         padding: 4px;
       }
 
+      .dark-mode .time-filters {
+        background-color: #3a3a3a; /* 夜间模式下的背景色 */
+      }
+
       .time-filter {
         padding: 6px 12px;
         font-size: 0.9rem;
         cursor: pointer;
         border-radius: 6px;
         transition: all 0.2s ease;
+        background-color: #f1f3f9;
+        color: #2c3e50;
+        border: 1px solid #e9ecef;
+      }
+
+      .dark-mode .time-filter {
+        background-color: #3a3a3a;
+        color: var(--text-secondary);
+        border: 1px solid #444444;
       }
 
       .time-filter.active {
         background-color: var(--primary-color);
         color: white;
+        border: 1px solid var(--primary-color);
       }
 
-      /* 全屏按钮样式 - 简约风格 */
-      .fullscreen-btn {
-        background: none;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 4px 8px;
-        font-size: 0.8rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        color: var(--text-secondary);
-        margin-left: 10px;
+      .dark-mode .time-filter.active {
+        background-color: var(--primary-color);
+        color: white;
+        border: 1px solid var(--primary-color);
       }
 
-      .fullscreen-btn:hover {
-        background-color: #f1f3f9;
-        color: var(--text-primary);
-        border-color: #bbb;
+      .time-filter:disabled {
+        background-color: #e9ecef;
+        color: #7f8c8d;
+        cursor: not-allowed;
+      }
+
+      .dark-mode .time-filter:disabled {
+        background-color: #444444;
+        color: #7f8c8d;
+        border: 1px solid #555555;
       }
 
       .chart-container {
@@ -489,10 +518,21 @@
         transition: all 0.2s ease;
       }
 
+      .dark-mode .fullscreen-btn {
+        border: 1px solid #555; /* 夜间模式下的边框颜色 */
+        color: var(--text-secondary);
+      }
+
       .fullscreen-btn:hover {
         background-color: #f0f0f0;
         border-color: #a0a0a0;
         color: #333;
+      }
+
+      .dark-mode .fullscreen-btn:hover {
+        background-color: #444; /* 夜间模式下的悬停背景色 */
+        border-color: #777; /* 夜间模式下的悬停边框颜色 */
+        color: var(--text-primary);
       }
 
       /* 实时播放信息悬浮窗 */
@@ -511,6 +551,12 @@
         animation: fadeIn 0.3s ease;
         cursor: move;
         user-select: none;
+      }
+
+      /* 夜间模式下的正在播放悬浮窗 */
+      .dark-mode #nowPlaying {
+        background-color: rgba(44, 44, 44, 0.95); /* 暗色背景 */
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
       }
 
       @keyframes fadeIn {
@@ -532,8 +578,17 @@
         font-size: 1.2rem;
       }
 
+      .dark-mode #nowPlaying h3 {
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-color);
+      }
+
       /* 调整悬浮窗内容区域的最小高度 */
       #nowPlayingInfo {
+        min-height: 100px;
+      }
+
+      .dark-mode #nowPlayingInfo {
         min-height: 100px;
       }
 
@@ -544,12 +599,21 @@
         text-align: right; /* 右对齐 */
       }
 
+      .dark-mode .favorite-indicators-container {
+        font-size: 0.5em;
+        margin-top: 10px;
+      }
+
       /* 喜欢状态指示器 */
       .favorite-indicator {
         display: inline-block;
         margin-left: 0;
         vertical-align: middle;
         font-size: 0.8em;
+        color: var(--text-secondary);
+      }
+
+      .dark-mode .favorite-indicator {
         color: var(--text-secondary);
       }
 
@@ -566,7 +630,16 @@
         height: auto;
       }
 
+      .dark-mode .favorite-button {
+        background: none;
+        border: none;
+      }
+
       .favorite-button:hover {
+        transform: scale(1.1);
+      }
+
+      .dark-mode .favorite-button:hover {
         transform: scale(1.1);
       }
 
@@ -575,12 +648,28 @@
         cursor: not-allowed; /* 已收藏时禁用点击 */
       }
 
+      .dark-mode .favorite-button.liked {
+        color: var(--source-applemusic);
+        cursor: not-allowed; /* 已收藏时禁用点击 */
+      }
+
       .favorite-button.unliked {
         color: #ccc;
       }
 
+      .dark-mode .favorite-button.unliked {
+        color: #888; /* 夜间模式下使用较暗的灰色 */
+      }
+
       /* 歌曲标题和收藏按钮容器 */
       .track-title-favorite-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 5px;
+      }
+
+      .dark-mode .track-title-favorite-container {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -595,6 +684,10 @@
         text-overflow: ellipsis; /* 超出部分显示省略号 */
       }
 
+      .dark-mode .track-title {
+        color: var(--text-primary); /* 夜间模式下使用主文本颜色 */
+      }
+
       /* 正在播放悬浮窗头部 */
       .now-playing-header {
         display: flex;
@@ -606,8 +699,17 @@
         cursor: move;
       }
 
+      .dark-mode .now-playing-header {
+        border-bottom: 1px solid var(--border-color);
+      }
+
       /* 正在播放控制按钮 */
       .now-playing-controls {
+        display: flex;
+        gap: 5px;
+      }
+
+      .dark-mode .now-playing-controls {
         display: flex;
         gap: 5px;
       }
@@ -620,6 +722,10 @@
         padding: 0 3px;
       }
 
+      .dark-mode .drag-handle {
+        color: #bdc3c7; /* 夜间模式下使用较亮的颜色 */
+      }
+
       /* 缩小把手 */
       .minimize-handle {
         cursor: pointer;
@@ -629,14 +735,28 @@
         font-weight: bold;
       }
 
+      .dark-mode .minimize-handle {
+        color: #bdc3c7; /* 夜间模式下使用较亮的颜色 */
+      }
+
       /* 拖动时的样式 */
       #nowPlaying.dragging {
         opacity: 0.8;
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
       }
 
+      .dark-mode #nowPlaying.dragging {
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      }
+
       /* 缩小状态的样式 */
       #nowPlaying.minimized {
+        width: 150px;
+        height: 60px;
+        padding: 10px;
+      }
+
+      .dark-mode #nowPlaying.minimized {
         width: 150px;
         height: 60px;
         padding: 10px;
@@ -647,7 +767,16 @@
         padding: 5px 10px;
       }
 
+      .dark-mode #nowPlaying.minimized .now-playing-header {
+        margin: -10px -10px 10px -10px;
+        padding: 5px 10px;
+      }
+
       #nowPlaying.minimized #nowPlayingInfo {
+        display: none;
+      }
+
+      .dark-mode #nowPlaying.minimized #nowPlayingInfo {
         display: none;
       }
 
@@ -656,6 +785,49 @@
         padding-bottom: 0;
         border-bottom: none;
         margin-bottom: 0;
+      }
+
+      .dark-mode #nowPlaying.minimized h3 {
+        font-size: 1rem;
+        padding-bottom: 0;
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
+      /* 未上报记录容器 */
+      .dark-mode #unscrobbledContainer .chart-card {
+        background-color: var(--card-bg);
+        color: var(--text-primary);
+      }
+
+      .dark-mode #unscrobbledContainer .card-title {
+        color: var(--text-primary);
+      }
+
+      .dark-mode #unscrobbledContainer .loading {
+        color: var(--text-secondary);
+      }
+
+      /* 未上报记录表格 */
+      .dark-mode #unscrobbledContainer table {
+        color: var(--text-primary);
+      }
+
+      .dark-mode #unscrobbledContainer table thead tr {
+        background-color: #3a3a3a;
+      }
+
+      .dark-mode #unscrobbledContainer table thead th {
+        border-bottom: 2px solid #444444;
+      }
+
+      .dark-mode #unscrobbledContainer table tbody tr {
+        border-bottom: 1px solid #444444;
+      }
+
+      /* 未上报记录分页 */
+      .dark-mode #unscrobbledContainer #pagination {
+        color: var(--text-primary);
       }
 
       /* 喜欢状态指示器 */
@@ -680,6 +852,11 @@
         height: auto;
       }
 
+      .dark-mode .favorite-button {
+        background: none;
+        border: none;
+      }
+
       .favorite-button:hover {
         transform: scale(1.1);
       }
@@ -700,6 +877,11 @@
         position: relative;
       }
 
+      .dark-mode .progress-container {
+        width: 100%;
+        margin: 15px 0 10px 0;
+      }
+
       /* 进度条轨道 */
       .progress-track {
         width: 100%;
@@ -711,6 +893,10 @@
         overflow: hidden;
       }
 
+      .dark-mode .progress-track {
+        background-color: #555; /* 夜间模式下使用较暗的背景 */
+      }
+
       /* 进度条已完成部分 */
       .progress-fill {
         height: 100%;
@@ -718,6 +904,10 @@
         border-radius: 3px;
         width: 0%;
         transition: width 0.3s ease;
+      }
+
+      .dark-mode .progress-fill {
+        background-color: var(--primary-color);
       }
 
       /* 进度条拖拽点 */
@@ -735,7 +925,15 @@
         pointer-events: none;
       }
 
+      .dark-mode .progress-thumb {
+        background-color: var(--primary-color);
+      }
+
       .progress-track:hover .progress-thumb {
+        opacity: 1;
+      }
+
+      .dark-mode .progress-track:hover .progress-thumb {
         opacity: 1;
       }
 
@@ -746,6 +944,10 @@
         font-size: 0.8rem;
         color: var(--text-secondary);
         margin-top: 5px;
+      }
+
+      .dark-mode .progress-time {
+        color: var(--text-secondary);
       }
     </style>
   </head>
@@ -995,6 +1197,75 @@
     <script>
       // WebSocket连接
       let ws = null;
+
+      // 自动切换日夜模式
+      function toggleDarkModeBasedOnTime() {
+        const body = document.body;
+        const currentHour = new Date().getHours();
+        
+        // 晚上7点到早上6点之间启用夜间模式
+        if (currentHour >= 19 || currentHour < 6) {
+          body.classList.add("dark-mode");
+          // 重新加载所有图表以适应暗色模式
+          reloadAllCharts();
+        } else {
+          body.classList.remove("dark-mode");
+          // 重新加载所有图表以适应亮色模式
+          reloadAllCharts();
+        }
+      }
+
+      // 检查是否处于暗色模式
+      function isDarkMode() {
+        return document.body.classList.contains("dark-mode");
+      }
+
+      // 获取图表的暗色模式配置
+      function getChartDarkModeOptions() {
+        if (isDarkMode()) {
+          return {
+            color: '#f0f0f0', // 文本颜色
+            borderColor: '#444444', // 边框颜色
+            backgroundColor: '#2c2c2c', // 背景颜色
+            gridColor: 'rgba(255, 255, 255, 0.1)', // 网格线颜色
+            ticksColor: '#bdc3c7', // 刻度颜色
+          };
+        } else {
+          return {
+            color: '#2c3e50', // 文本颜色
+            borderColor: '#e9ecef', // 边框颜色
+            backgroundColor: '#ffffff', // 背景颜色
+            gridColor: 'rgba(0, 0, 0, 0.05)', // 网格线颜色
+            ticksColor: '#7f8c8d', // 刻度颜色
+          };
+        }
+      }
+
+      // 重新加载所有图表以适应主题变化
+      function reloadAllCharts() {
+        // 重新初始化所有图表
+        initSourceChart();
+        initGenreChart();
+        
+        // 重新初始化当前激活的图表
+        const trendRange = document.querySelector(".time-filter.active[data-range]")
+          ?.getAttribute("data-range") || 30;
+        initTrendChart(trendRange);
+        
+        const artistType = document.querySelector(".time-filter.active[data-type]")
+          ?.getAttribute("data-type") || "plays";
+        initArtistChart(artistType);
+        
+        const albumDays = document.querySelector(".time-filter.active[data-days]")
+          ?.getAttribute("data-days") || 30;
+        initAlbumChart(albumDays);
+        
+        // 如果未上报页面可见，重新加载其内容以适应主题变化
+        const unscrobbledContainer = document.getElementById("unscrobbledContainer");
+        if (unscrobbledContainer && unscrobbledContainer.style.display !== "none") {
+          loadUnscrobbledRecords();
+        }
+      }
 
       // 连接到WebSocket服务器
       function connectWebSocket() {
@@ -1314,26 +1585,6 @@
         });
       }
 
-      // 切换播放信息显示状态
-      function toggleNowPlaying() {
-        const content = document.getElementById("nowPlayingContent");
-        const button = document.getElementById("toggleButton");
-
-        if (content.style.display === "none") {
-          // 展开
-          content.style.display = "block";
-          button.textContent = "−";
-          // 调整悬浮窗宽度
-          document.getElementById("nowPlaying").style.width = "300px";
-        } else {
-          // 收起
-          content.style.display = "none";
-          button.textContent = "+";
-          // 调整悬浮窗宽度
-          document.getElementById("nowPlaying").style.width = "150px";
-        }
-      }
-
       // 初始化统计卡片
       function initStats() {
         fetch("/api/dashboard/stats")
@@ -1373,12 +1624,23 @@
 
       // 初始化播放来源扇形图
       function initSourceChart() {
-        const ctx = document.getElementById("sourceChart").getContext("2d");
-
+        const chartContainer = document.getElementById("sourceChart").parentElement;
+        
         // 销毁之前的图表实例（如果存在）
         if (sourceChartInstance) {
           sourceChartInstance.destroy();
+          sourceChartInstance = null;
         }
+        
+        // 清理容器并重新创建canvas元素
+        chartContainer.innerHTML = '<canvas id="sourceChart"></canvas>';
+        const canvas = document.getElementById("sourceChart");
+        if (!canvas) {
+          console.error("找不到ID为sourceChart的canvas元素");
+          return;
+        }
+        
+        const ctx = canvas.getContext("2d");
 
         // 从后端获取数据
         fetch("/api/dashboard/play-counts-by-source")
@@ -1389,6 +1651,9 @@
             return response.json();
           })
           .then((data) => {
+            // 获取暗色模式配置
+            const darkModeOptions = getChartDarkModeOptions();
+            
             // 处理数据
             const sources = Object.keys(data);
             const counts = sources.map((source) => data[source]);
@@ -1429,6 +1694,7 @@
                   legend: {
                     position: "right",
                     labels: {
+                      color: darkModeOptions.color, // 暗色模式下的图例文字颜色
                       boxWidth: 12,
                       padding: 8,
                       font: {
@@ -1457,9 +1723,13 @@
           })
           .catch((error) => {
             console.error("获取播放来源数据失败:", error);
+            // 销毁之前的图表实例（如果存在）
+            if (sourceChartInstance) {
+              sourceChartInstance.destroy();
+              sourceChartInstance = null;
+            }
             // 显示错误信息
-            const chartContainer =
-              document.getElementById("sourceChart").parentElement;
+            const chartContainer = document.getElementById("sourceChart").parentElement;
             chartContainer.innerHTML =
               '<div class="error">加载失败: ' + error.message + "</div>";
           });
@@ -1619,6 +1889,9 @@
               loadingElement.remove();
             }
 
+            // 获取暗色模式配置
+            const darkModeOptions = getChartDarkModeOptions();
+
             // 处理新的API响应格式，将数据转换为气泡图所需格式
             const bubbleData = [];
 
@@ -1695,6 +1968,9 @@
                 plugins: {
                   legend: {
                     display: false,
+                    labels: {
+                      color: darkModeOptions.color, // 暗色模式下的图例文字颜色
+                    }
                   },
                   tooltip: {
                     callbacks: {
@@ -1732,11 +2008,13 @@
                     title: {
                       display: true,
                       text: "日期",
+                      color: darkModeOptions.color, // 暗色模式下的标题颜色
                     },
                     grid: {
-                      color: "rgba(0, 0, 0, 0.05)",
+                      color: darkModeOptions.gridColor, // 暗色模式下的网格线颜色
                     },
                     ticks: {
+                      color: darkModeOptions.ticksColor, // 暗色模式下的刻度颜色
                       //stepSize: 1,
                       maxRotation: 60,
                       minRotation: 45,
@@ -1754,6 +2032,7 @@
                     min: -1,
                     max: 24.99,
                     ticks: {
+                      color: darkModeOptions.ticksColor, // 暗色模式下的刻度颜色
                       stepSize: 1,
                       maxRotation: 60,
                       minRotation: 45,
@@ -1765,9 +2044,10 @@
                     title: {
                       display: true,
                       text: "时间",
+                      color: darkModeOptions.color, // 暗色模式下的标题颜色
                     },
                     grid: {
-                      color: "rgba(0, 0, 0, 0.05)",
+                      color: darkModeOptions.gridColor, // 暗色模式下的网格线颜色
                     },
                   },
                 },
@@ -1790,8 +2070,17 @@
             if (loadingElement) {
               loadingElement.remove();
             }
-            chartContainer.innerHTML =
-              '<div class="error">加载失败: ' + error.message + "</div>";
+            // 销毁之前的图表实例（如果存在）
+            if (window.trendChartInstance) {
+              window.trendChartInstance.destroy();
+              window.trendChartInstance = null;
+            }
+            // 确保canvas元素存在后再替换innerHTML
+            const canvas = document.getElementById("trendChart");
+            if (canvas && canvas.parentElement) {
+              canvas.parentElement.innerHTML =
+                '<div class="error">加载失败: ' + error.message + "</div>";
+            }
           });
       }
 
@@ -1838,6 +2127,9 @@
             );
 
             const label = type === "plays" ? "播放次数" : "曲目数";
+
+            // 获取暗色模式配置
+            const darkModeOptions = getChartDarkModeOptions();
 
             new Chart(newCtx, {
               type: "bar",
@@ -1929,13 +2221,19 @@
                 plugins: {
                   legend: {
                     display: false,
+                    labels: {
+                      color: darkModeOptions.color, // 暗色模式下的图例文字颜色
+                    }
                   },
                 },
                 scales: {
                   y: {
                     beginAtZero: true,
                     grid: {
-                      color: "rgba(0, 0, 0, 0.05)",
+                      color: darkModeOptions.gridColor, // 暗色模式下的网格线颜色
+                    },
+                    ticks: {
+                      color: darkModeOptions.ticksColor, // 暗色模式下的刻度颜色
                     },
                   },
                   x: {
@@ -1943,6 +2241,7 @@
                       display: false,
                     },
                     ticks: {
+                      color: darkModeOptions.ticksColor, // 暗色模式下的刻度颜色
                       autoSkip: false,
                       maxRotation: 45, // 恢复斜体显示
                       callback: function (value) {
@@ -2006,6 +2305,9 @@
             const artists = data.map((item) => item.artist);
             const counts = data.map((item) => item.play_count);
 
+            // 获取暗色模式配置
+            const darkModeOptions = getChartDarkModeOptions();
+
             new Chart(newCtx, {
               type: "bar",
               data: {
@@ -2047,7 +2349,12 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                  legend: { display: false },
+                  legend: { 
+                    display: false,
+                    labels: {
+                      color: darkModeOptions.color, // 暗色模式下的图例文字颜色
+                    }
+                  },
                   tooltip: {
                     callbacks: {
                       // 移除默认 label（第一行）
@@ -2072,11 +2379,17 @@
                 scales: {
                   x: {
                     beginAtZero: true,
-                    grid: { color: "rgba(0, 0, 0, 0.05)" },
+                    grid: { 
+                      color: darkModeOptions.gridColor, // 暗色模式下的网格线颜色
+                    },
+                    ticks: {
+                      color: darkModeOptions.ticksColor, // 暗色模式下的刻度颜色
+                    },
                   },
                   y: {
                     grid: { display: false },
                     ticks: {
+                      color: darkModeOptions.ticksColor, // 暗色模式下的刻度颜色
                       autoSkip: false,
                       //maxRotation: 60, // 恢复斜体显示
                       //minRotation: 45, // 恢复斜体显示
@@ -2314,6 +2627,9 @@
             const shuffledBorderColors = dataset.map((item) => item.border);
             const shuffledGenresNameZhs = dataset.map((item) => item.zh);
 
+            // 获取暗色模式配置
+            const darkModeOptions = getChartDarkModeOptions();
+
             // 保存图表实例以便全屏时重新渲染
             window.genreChartInstance = new Chart(newCtx, {
               type: "polarArea",
@@ -2336,6 +2652,7 @@
                   legend: {
                     position: "left",
                     labels: {
+                      color: darkModeOptions.color, // 暗色模式下的图例文字颜色
                       font: {
                         size: 10, // 字体变小
                       },
@@ -2356,6 +2673,7 @@
                 scales: {
                   r: {
                     pointLabels: {
+                      color: darkModeOptions.color, // 暗色模式下的点标签颜色
                       display: true,
                       centerPointLabels: true,
                       font: {
@@ -2363,7 +2681,8 @@
                       },
                     },
                     ticks: {
-                      backdropColor: "rgba(0, 0, 0, 0.05)",
+                      color: darkModeOptions.ticksColor, // 暗色模式下的刻度颜色
+                      backdropColor: isDarkMode() ? "rgba(44, 44, 44, 0.8)" : "rgba(0, 0, 0, 0.05)",
                     },
                     // max: Math.max(...shuffledCounts) * 1.1, // 扩大 20% 半径
                   },
@@ -2378,8 +2697,17 @@
             if (loadingElement) {
               loadingElement.remove();
             }
-            chartContainer.innerHTML =
-              '<div class="error">加载失败: ' + error.message + "</div>";
+            // 销毁之前的图表实例（如果存在）
+            if (window.genreChartInstance) {
+              window.genreChartInstance.destroy();
+              window.genreChartInstance = null;
+            }
+            // 确保canvas元素存在后再替换innerHTML
+            const canvas = document.getElementById("genreChart");
+            if (canvas && canvas.parentElement) {
+              canvas.parentElement.innerHTML =
+                '<div class="error">加载失败: ' + error.message + "</div>";
+            }
           });
       }
 
@@ -2706,22 +3034,31 @@
           return;
         }
 
+        // 检查是否处于暗色模式
+        const isDark = document.body.classList.contains("dark-mode");
+        
+        // 根据主题设置颜色
+        const headerBgColor = isDark ? "#3a3a3a" : "#f1f3f9";
+        const borderColor = isDark ? "#444444" : "#e9ecef";
+        const rowBorderColor = isDark ? "#444444" : "#e9ecef";
+        const textColor = isDark ? "#f0f0f0" : "#2c3e50";
+
         let html =
-          '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
+          `<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; color: ${textColor};">`;
         html +=
-          '<thead><tr style="background-color: #f1f3f9; text-align: left;">';
+          `<thead><tr style="background-color: ${headerBgColor}; text-align: left;">`;
         html +=
-          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;"></th>';
+          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};"></th>`;
         html +=
-          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">曲目</th>';
+          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">曲目</th>`;
         html +=
-          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">艺术家</th>';
+          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">艺术家</th>`;
         html +=
-          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">专辑</th>';
+          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">专辑</th>`;
         html +=
-          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">播放时间</th>';
+          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">播放时间</th>`;
         html +=
-          '<th style="padding: 12px; border-bottom: 2px solid #e9ecef;">来源</th>';
+          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">来源</th>`;
         html += "</tr></thead><tbody>";
 
         records.forEach((record) => {
@@ -2750,7 +3087,7 @@
               sourceText = record.source || "Unknown";
           }
 
-          html += `<tr style="border-bottom: 1px solid #e9ecef;">`;
+          html += `<tr style="border-bottom: 1px solid ${rowBorderColor};">`;
           html += `<td style="padding: 12px;"><input type="checkbox" class="record-checkbox" data-id="${record.id}"></td>`;
           html += `<td style="padding: 12px;">${record.track}</td>`;
           html += `<td style="padding: 12px;">${record.artist}</td>`;
@@ -2772,6 +3109,14 @@
         const pageInfo = document.getElementById("pageInfo");
         const prevBtn = document.getElementById("prevPage");
         const nextBtn = document.getElementById("nextPage");
+
+        // 检查是否处于暗色模式
+        const isDark = document.body.classList.contains("dark-mode");
+        
+        // 设置分页信息文本颜色
+        if (pageInfo) {
+          pageInfo.style.color = isDark ? "var(--text-primary)" : "#2c3e50";
+        }
 
         if (totalUnscrobbledRecords === 0) {
           pageInfo.textContent = "无记录";
@@ -2885,10 +3230,16 @@
 
       // 页面加载完成后初始化
       document.addEventListener("DOMContentLoaded", function () {
+        // 自动切换日夜模式
+        toggleDarkModeBasedOnTime();
+        
+        // 每分钟检查一次时间，自动切换模式
+        setInterval(toggleDarkModeBasedOnTime, 60000);
+
         // 初始化各个组件
         initStats();
         initSourceChart(); // 初始化播放来源扇形图
-        initTrendChart(30); // 默认加载7天数据
+        initTrendChart(30); // 默认加载30天数据
         initArtistChart("plays"); // 默认按播放次数排序
         initAlbumChart(30); // 默认加载30天数据
         initGenreChart(); // 初始化热门流派图表
@@ -2902,7 +3253,7 @@
         dashboardUpdater.clearAllTimers();
 
         // 设置定时器，每5秒刷新一次各个组件
-        dashboardUpdater.addTimer(createAutoUpdater(initStats, 60000)); // 每5秒更新统计卡片
+        dashboardUpdater.addTimer(createAutoUpdater(initStats, 60000)); // 每60秒更新统计卡片
         dashboardUpdater.addTimer(createAutoUpdater(initSourceChart, 60000)); // 每60秒更新播放来源扇形图
         dashboardUpdater.addTimer(
           createAutoUpdater(
@@ -2910,11 +3261,11 @@
               initTrendChart(
                 document
                   .querySelector(".time-filter.active[data-range]")
-                  .getAttribute("data-range") || 7
+                  .getAttribute("data-range") || 30
               ),
             60000
           )
-        ); // 每5秒更新趋势图
+        ); // 每60秒更新趋势图
         dashboardUpdater.addTimer(
           createAutoUpdater(
             () =>
@@ -2925,7 +3276,7 @@
               ),
             60000
           )
-        ); // 每5秒更新艺术家图表
+        ); // 每60秒更新艺术家图表
         dashboardUpdater.addTimer(
           createAutoUpdater(
             () =>
@@ -2936,7 +3287,7 @@
               ),
             60000
           )
-        ); // 每5秒更新专辑图表
+        ); // 每60秒更新专辑图表
         dashboardUpdater.addTimer(createAutoUpdater(initGenreChart, 60000)); // 每60秒更新流派图表
         dashboardUpdater.addTimer(
           createAutoUpdater(
@@ -2948,8 +3299,8 @@
               ),
             60000
           )
-        ); // 每5秒更新排行榜
-        dashboardUpdater.addTimer(createAutoUpdater(refreshRecentPlays, 60000)); // 每5秒更新最近播放列表
+        ); // 每60秒更新排行榜
+        dashboardUpdater.addTimer(createAutoUpdater(refreshRecentPlays, 60000)); // 每60秒更新最近播放列表
 
         // 添加时间过滤器点击事件
         document.querySelectorAll(".time-filter").forEach((filter) => {

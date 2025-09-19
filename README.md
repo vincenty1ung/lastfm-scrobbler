@@ -2,7 +2,8 @@
 
 以下是项目的效果展示界面：
 
-![项目效果展示](static/img/home.png)
+![项目效果暗色](static/img/home_night.png)
+![项目效果明色](static/img/home.png)
 
 该界面展示了一个音乐播放数据分析仪表盘，主要显示用户的听歌习惯与数据统计。整体布局为网格化设计，包含多个数据卡片，涵盖播放次数、曲目数量、艺术家和专辑热度、音乐风格偏好及播放趋势等信息。左侧有一个"正在播放"浮动窗口，显示当前播放的歌曲信息。
 
@@ -60,16 +61,16 @@
     - 获取到曲目信息后,程序会进行一系列判断,例如:
       - 当前是否有歌曲在播放?
       - 播放的歌曲是否和上一首相同?
-      - 歌曲的播放时长或进度是否达到了 Last.fm 规定的 Scrobble 阈值(默认为播放55%)?
+      - 歌曲的播放时长或进度是否达到了 Last.fm 规定的 Scrobble 阈值(默认为播放 55%)?
     - 当满足所有 Scrobble 条件后,程序会调用 `github.com/shkh/lastfm-go` 库,使用用户的凭据,将这首歌曲的信息发送到 Last.fm 的服务器。
     - 同时，播放记录会被存储到本地数据库中，用于后续分析和同步。
     - 程序还会更新曲目的播放统计信息，使用乐观锁机制保证并发安全。
 
-6.  **Redis缓存优化**:
+6.  **Redis 缓存优化**:
 
     - 为了减少对 Last.fm API 的频繁调用，项目实现了 Redis 缓存机制。
     - `IsFavorite` 函数会首先检查 Redis 缓存，如果缓存命中则直接返回结果，避免调用 Last.fm API。
-    - 缓存键采用 `cache:isFavorite:lastfm:{artist}:{track}` 格式，过期时间为4分钟。
+    - 缓存键采用 `cache:isFavorite:lastfm:{artist}:{track}` 格式，过期时间为 4 分钟。
     - 当调用 `SetFavorite` 函数时，会自动清除对应曲目的缓存，确保数据一致性。
 
 7.  **实时播放信息推送**:
@@ -103,7 +104,7 @@
     - `userPassword`: 你的 Last.fm 密码。
 3.  **配置需要监控的播放器**:
     - 在 `scrobblers` 部分添加需要监控的播放器列表，支持 "Apple Music"、"Audirvana" 和 "Roon"。
-4.  **配置Redis（可选）**:
+4.  **配置 Redis（可选）**:
     - 在 `redis` 部分配置 Redis 连接信息，用于缓存 Last.fm 收藏状态查询结果。
 
 ```yaml
@@ -124,7 +125,7 @@ musixmatch:
   apiKey: 4xxxx5xxxxx81b6654790
 
 database:
-  type: "sqlite"  # "sqlite" or "mysql"
+  type: "sqlite" # "sqlite" or "mysql"
   path: ".storage/tracks.db"
   mysql:
     host: "localhost"
@@ -151,7 +152,7 @@ scrobblers:
   - "Audirvana"
   - "Roon"
 
-isDev: true  # 开发环境自动初始化数据库表结构，生产环境需要手动执行SQL语句
+isDev: true # 开发环境自动初始化数据库表结构，生产环境需要手动执行SQL语句
 ```
 
 ### 步骤二: 安装依赖工具
@@ -159,6 +160,7 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
 根据不同播放器的支持需求，你需要安装相应的依赖工具：
 
 1.  **Roon 监控**:
+
     - 项目使用 `media-control` 工具来监控 Roon 的播放状态。
     - 你需要使用 Homebrew 安装 `media-control`:
       ```shell
@@ -166,10 +168,12 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
       ```
 
 2.  **Apple Music 监控**:
+
     - 项目使用 AppleScript 来监控 Apple Music 的播放状态。
     - 确保你的 macOS 系统已启用 AppleScript 支持（通常默认启用）。
 
 3.  **Audirvana 监控**:
+
     - 项目使用 AppleScript 来监控 Audirvana 的播放状态。
     - 确保你的 macOS 系统已启用 AppleScript 支持（通常默认启用）。
 
@@ -200,7 +204,7 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
     ```shell
     tail -f .logs/go_lastfm-scrobbler.log
     ```
-5.  程序启动后会提供Web界面，默认端口为8081，可以通过浏览器访问 `http://localhost:8081` 查看仪表板。
+5.  程序启动后会提供 Web 界面，默认端口为 8081，可以通过浏览器访问 `http://localhost:8081` 查看仪表板。
 
 **方式二: 作为后台服务运行 (推荐的日常使用方式)**
 
@@ -223,7 +227,7 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
 4.  **其他管理命令**:
     - 停止服务: `sh shell/script/stop_lastfm-scrobblers.sh`
     - 查看日志: `tail -f .logs/go_lastfm-scrobbler.log`
-    - 访问Web界面: 打开浏览器访问 `http://localhost:8081`
+    - 访问 Web 界面: 打开浏览器访问 `http://localhost:8081`
 
 ## 3. 如何使用
 
@@ -257,7 +261,7 @@ musixmatch:
   apiKey: 4xxxx5xxxxx81b6654790
 
 database:
-  type: "sqlite"  # "sqlite" or "mysql"
+  type: "sqlite" # "sqlite" or "mysql"
   path: ".storage/tracks.db"
   mysql:
     host: "localhost"
@@ -277,7 +281,7 @@ scrobblers:
   - "Audirvana"
   - "Roon"
 
-isDev: true  # 开发环境自动初始化数据库表结构，生产环境需要手动执行SQL语句
+isDev: true # 开发环境自动初始化数据库表结构，生产环境需要手动执行SQL语句
 ```
 
 ### 步骤二: 安装依赖工具
@@ -285,6 +289,7 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
 根据不同播放器的支持需求，你需要安装相应的依赖工具：
 
 1.  **Roon 监控**:
+
     - 项目使用 `media-control` 工具来监控 Roon 的播放状态。
     - 你需要使用 Homebrew 安装 `media-control`:
       ```shell
@@ -292,6 +297,7 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
       ```
 
 2.  **Apple Music 监控**:
+
     - 项目使用 AppleScript 来监控 Apple Music 的播放状态。
     - 确保你的 macOS 系统已启用 AppleScript 支持（通常默认启用）。
 
@@ -318,7 +324,7 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
     ```shell
     tail -f .logs/go_lastfm-scrobbler.log
     ```
-5.  程序启动后会提供Web界面，默认端口为8081，可以通过浏览器访问 `http://localhost:8081` 查看仪表板。
+5.  程序启动后会提供 Web 界面，默认端口为 8081，可以通过浏览器访问 `http://localhost:8081` 查看仪表板。
 
 **方式二: 作为后台服务运行 (推荐的日常使用方式)**
 
@@ -341,7 +347,7 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
 4.  **其他管理命令**:
     - 停止服务: `sh shell/script/stop_lastfm-scrobblers.sh`
     - 查看日志: `tail -f .logs/go_lastfm-scrobbler.log`
-    - 访问Web界面: 打开浏览器访问 `http://localhost:8081`
+    - 访问 Web 界面: 打开浏览器访问 `http://localhost:8081`
 
 ## 4. 项目结构解析
 
@@ -399,26 +405,31 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
 ## 5. 核心功能更新
 
 ### 5.1 播放记录追踪
+
 - 实现了 `TrackPlayRecord` 数据模型，用于存储每次播放的详细信息
 - 在播放检查逻辑中集成了数据库存储逻辑
-- 当曲目播放进度超过55%时，将播放记录保存到本地数据库
+- 当曲目播放进度超过 55%时，将播放记录保存到本地数据库
 
 ### 5.2 播放统计
+
 - 实现了 `Track` 数据模型，用于统计每首曲目的播放次数
 - 使用乐观锁机制保证并发安全
-- 在每次成功scrobble后更新对应曲目的播放次数
+- 在每次成功 scrobble 后更新对应曲目的播放次数
 
 ### 5.3 数据同步
-- 实现了未同步到Last.fm的播放记录的同步功能
-- 通过Web界面可以查看和手动同步未同步的记录
+
+- 实现了未同步到 Last.fm 的播放记录的同步功能
+- 通过 Web 界面可以查看和手动同步未同步的记录
 - 同步成功后更新记录的 `Scrobbled` 状态
 
 ### 5.4 分析报告功能
+
 - 新增分析报告命令，提供播放统计、推荐曲目等分析功能
-- 通过Web界面展示分析结果
+- 通过 Web 界面展示分析结果
 - 支持生成播放报告和推荐列表
 
-### 5.5 WebSocket实时播放信息推送
+### 5.5 WebSocket 实时播放信息推送
+
 - 实现了 WebSocket 服务端功能，支持实时推送当前播放信息
 - 在 `core/websocket/` 目录中实现 WebSocket 连接管理和消息广播机制
 - 在播放检查逻辑中集成实时信息推送功能
@@ -426,23 +437,27 @@ isDev: true  # 开发环境自动初始化数据库表结构，生产环境需�
 - 用户可以通过 Web 界面实时查看 Audirvana、Roon 或 Apple Music 正在播放的音乐信息
 
 ### 5.6 数据模型增强
-- 增强了 `Track` 数据模型，支持更多音乐元数据（专辑艺术家、曲目编号、流派、作曲家、发布日期、MusicBrainz ID等）
+
+- 增强了 `Track` 数据模型，支持更多音乐元数据（专辑艺术家、曲目编号、流派、作曲家、发布日期、MusicBrainz ID 等）
 - 实现了 `Genre` 数据模型，用于音乐流派管理
 - 提供了丰富的数据查询接口，支持按艺术家、专辑、流派等维度进行统计分析
 
 ### 5.7 收藏功能
-- 实现了对播放曲目的收藏功能
-- 支持同步收藏状态到Apple Music和Last.fm
-- 通过Web界面可以查看和管理收藏状态
 
-### 5.8 Redis缓存优化
-- 实现了Redis缓存机制，优化Last.fm收藏状态查询性能
-- 在`core/redis/`目录中实现Redis客户端封装，包括连接管理、日志记录和链路跟踪
-- 为`IsFavorite`函数添加缓存支持，减少对Last.fm API的频繁调用
+- 实现了对播放曲目的收藏功能
+- 支持同步收藏状态到 Apple Music 和 Last.fm
+- 通过 Web 界面可以查看和管理收藏状态
+
+### 5.8 Redis 缓存优化
+
+- 实现了 Redis 缓存机制，优化 Last.fm 收藏状态查询性能
+- 在`core/redis/`目录中实现 Redis 客户端封装，包括连接管理、日志记录和链路跟踪
+- 为`IsFavorite`函数添加缓存支持，减少对 Last.fm API 的频繁调用
 - 实现了智能缓存清除机制，在调用`SetFavorite`时自动清除对应缓存
-- 集成OpenTelemetry链路跟踪，提供完整的Redis操作监控
+- 集成 OpenTelemetry 链路跟踪，提供完整的 Redis 操作监控
 
 ### 5.9 并发监控架构优化
+
 - 采用面向接口的设计，实现了灵活的播放器监控架构
 - 定义了 `PlayerInfoHandler`、`PlayerController` 和 `PlayerChecker` 三个核心接口
 - 实现了 `BasePlayerChecker` 基础检查器，提供通用的播放检查逻辑
