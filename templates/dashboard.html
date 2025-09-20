@@ -1201,14 +1201,17 @@
       // 自动切换日夜模式
       function toggleDarkModeBasedOnSystem() {
         const body = document.body;
-        
+
         // 检查系统主题偏好
-        if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        if (
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+        ) {
           body.classList.add("dark-mode");
         } else {
           body.classList.remove("dark-mode");
         }
-        
+
         // 重新加载所有图表以适应主题模式
         reloadAllCharts();
       }
@@ -1290,22 +1293,28 @@
       // 更新全屏模式下的图表背景色
       function updateFullscreenChartBackground() {
         // 更新趋势图全屏背景
-        const trendFullscreenOverlay = document.getElementById("trendChartFullscreenOverlay");
+        const trendFullscreenOverlay = document.getElementById(
+          "trendChartFullscreenOverlay"
+        );
         if (trendFullscreenOverlay) {
           const isDark = document.body.classList.contains("dark-mode");
           const backgroundColor = isDark ? "#2c2c2c" : "white";
           const textColor = isDark ? "#f0f0f0" : "#2c3e50";
-          trendFullscreenOverlay.querySelector("div").style.backgroundColor = backgroundColor;
+          trendFullscreenOverlay.querySelector("div").style.backgroundColor =
+            backgroundColor;
           trendFullscreenOverlay.querySelector("div").style.color = textColor;
         }
 
         // 更新流派图全屏背景
-        const genreFullscreenOverlay = document.getElementById("genreChartFullscreenOverlay");
+        const genreFullscreenOverlay = document.getElementById(
+          "genreChartFullscreenOverlay"
+        );
         if (genreFullscreenOverlay) {
           const isDark = document.body.classList.contains("dark-mode");
           const backgroundColor = isDark ? "#2c2c2c" : "white";
           const textColor = isDark ? "#f0f0f0" : "#2c3e50";
-          genreFullscreenOverlay.querySelector("div").style.backgroundColor = backgroundColor;
+          genreFullscreenOverlay.querySelector("div").style.backgroundColor =
+            backgroundColor;
           genreFullscreenOverlay.querySelector("div").style.color = textColor;
         }
       }

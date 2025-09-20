@@ -149,14 +149,13 @@ func GetTopGenresWithDetails(ctx context.Context, limit int) ([]*TopGenre, error
 	// 根据数据库类型使用不同的SQL语法
 	if config.ConfigObj.Database.Type == string(common.DatabaseTypeMySQL) {
 		err := GetDB().WithContext(ctx).Raw(
-			`
-			select tg.track_genre_name, tg.track_genre_count, g.name_zh as genre_name_zh, g.play_count as genre_count
+			`select tg.track_genre_name, tg.track_genre_count, g.name_zh as genre_name_zh, g.play_count as genre_count
 			from (select genre as track_genre_name, sum(play_count) as track_genre_count
 				  from track
-				  where genre != ''
+				  -- where genre != ''
 				  group by genre
-				  order by track_genre_count desc limit ?) as tg
-				 left join genre as g on tg.track_genre_name = g.name`, limit,
+				  order by track_genre_count desc limit 20) as tg
+				 inner join genre as g on tg.track_genre_name = g.name where tg.track_genre_name!='' limit ?`, limit,
 		).Scan(&result).Error
 		if err != nil {
 			return nil, err
