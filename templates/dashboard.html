@@ -1199,19 +1199,25 @@
       let ws = null;
 
       // 自动切换日夜模式
-      function toggleDarkModeBasedOnTime() {
+      function toggleDarkModeBasedOnSystem() {
         const body = document.body;
-        const currentHour = new Date().getHours();
         
-        // 晚上7点到早上6点之间启用夜间模式
-        if (currentHour >= 19 || currentHour < 6) {
+        // 检查系统主题偏好
+        if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
           body.classList.add("dark-mode");
-          // 重新加载所有图表以适应暗色模式
-          reloadAllCharts();
         } else {
           body.classList.remove("dark-mode");
-          // 重新加载所有图表以适应亮色模式
-          reloadAllCharts();
+        }
+        
+        // 重新加载所有图表以适应主题模式
+        reloadAllCharts();
+      }
+
+      // 监听系统主题变化
+      function watchSystemThemeChange() {
+        if (window.matchMedia) {
+          const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+          mediaQuery.addEventListener("change", toggleDarkModeBasedOnSystem);
         }
       }
 
@@ -1224,19 +1230,19 @@
       function getChartDarkModeOptions() {
         if (isDarkMode()) {
           return {
-            color: '#f0f0f0', // 文本颜色
-            borderColor: '#444444', // 边框颜色
-            backgroundColor: '#2c2c2c', // 背景颜色
-            gridColor: 'rgba(255, 255, 255, 0.1)', // 网格线颜色
-            ticksColor: '#bdc3c7', // 刻度颜色
+            color: "#f0f0f0", // 文本颜色
+            borderColor: "#444444", // 边框颜色
+            backgroundColor: "#2c2c2c", // 背景颜色
+            gridColor: "rgba(255, 255, 255, 0.1)", // 网格线颜色
+            ticksColor: "#bdc3c7", // 刻度颜色
           };
         } else {
           return {
-            color: '#2c3e50', // 文本颜色
-            borderColor: '#e9ecef', // 边框颜色
-            backgroundColor: '#ffffff', // 背景颜色
-            gridColor: 'rgba(0, 0, 0, 0.05)', // 网格线颜色
-            ticksColor: '#7f8c8d', // 刻度颜色
+            color: "#2c3e50", // 文本颜色
+            borderColor: "#e9ecef", // 边框颜色
+            backgroundColor: "#ffffff", // 背景颜色
+            gridColor: "rgba(0, 0, 0, 0.05)", // 网格线颜色
+            ticksColor: "#7f8c8d", // 刻度颜色
           };
         }
       }
@@ -1246,24 +1252,61 @@
         // 重新初始化所有图表
         initSourceChart();
         initGenreChart();
-        
+
         // 重新初始化当前激活的图表
-        const trendRange = document.querySelector(".time-filter.active[data-range]")
-          ?.getAttribute("data-range") || 30;
+        const trendRange =
+          document
+            .querySelector(".time-filter.active[data-range]")
+            ?.getAttribute("data-range") || 30;
         initTrendChart(trendRange);
-        
-        const artistType = document.querySelector(".time-filter.active[data-type]")
-          ?.getAttribute("data-type") || "plays";
+
+        const artistType =
+          document
+            .querySelector(".time-filter.active[data-type]")
+            ?.getAttribute("data-type") || "plays";
         initArtistChart(artistType);
-        
-        const albumDays = document.querySelector(".time-filter.active[data-days]")
-          ?.getAttribute("data-days") || 30;
+
+        const albumDays =
+          document
+            .querySelector(".time-filter.active[data-days]")
+            ?.getAttribute("data-days") || 30;
         initAlbumChart(albumDays);
-        
+
         // 如果未上报页面可见，重新加载其内容以适应主题变化
-        const unscrobbledContainer = document.getElementById("unscrobbledContainer");
-        if (unscrobbledContainer && unscrobbledContainer.style.display !== "none") {
+        const unscrobbledContainer = document.getElementById(
+          "unscrobbledContainer"
+        );
+        if (
+          unscrobbledContainer &&
+          unscrobbledContainer.style.display !== "none"
+        ) {
           loadUnscrobbledRecords();
+        }
+
+        // 更新全屏模式下的图表背景色
+        updateFullscreenChartBackground();
+      }
+
+      // 更新全屏模式下的图表背景色
+      function updateFullscreenChartBackground() {
+        // 更新趋势图全屏背景
+        const trendFullscreenOverlay = document.getElementById("trendChartFullscreenOverlay");
+        if (trendFullscreenOverlay) {
+          const isDark = document.body.classList.contains("dark-mode");
+          const backgroundColor = isDark ? "#2c2c2c" : "white";
+          const textColor = isDark ? "#f0f0f0" : "#2c3e50";
+          trendFullscreenOverlay.querySelector("div").style.backgroundColor = backgroundColor;
+          trendFullscreenOverlay.querySelector("div").style.color = textColor;
+        }
+
+        // 更新流派图全屏背景
+        const genreFullscreenOverlay = document.getElementById("genreChartFullscreenOverlay");
+        if (genreFullscreenOverlay) {
+          const isDark = document.body.classList.contains("dark-mode");
+          const backgroundColor = isDark ? "#2c2c2c" : "white";
+          const textColor = isDark ? "#f0f0f0" : "#2c3e50";
+          genreFullscreenOverlay.querySelector("div").style.backgroundColor = backgroundColor;
+          genreFullscreenOverlay.querySelector("div").style.color = textColor;
         }
       }
 
@@ -1624,14 +1667,15 @@
 
       // 初始化播放来源扇形图
       function initSourceChart() {
-        const chartContainer = document.getElementById("sourceChart").parentElement;
-        
+        const chartContainer =
+          document.getElementById("sourceChart").parentElement;
+
         // 销毁之前的图表实例（如果存在）
         if (sourceChartInstance) {
           sourceChartInstance.destroy();
           sourceChartInstance = null;
         }
-        
+
         // 清理容器并重新创建canvas元素
         chartContainer.innerHTML = '<canvas id="sourceChart"></canvas>';
         const canvas = document.getElementById("sourceChart");
@@ -1639,7 +1683,7 @@
           console.error("找不到ID为sourceChart的canvas元素");
           return;
         }
-        
+
         const ctx = canvas.getContext("2d");
 
         // 从后端获取数据
@@ -1653,7 +1697,7 @@
           .then((data) => {
             // 获取暗色模式配置
             const darkModeOptions = getChartDarkModeOptions();
-            
+
             // 处理数据
             const sources = Object.keys(data);
             const counts = sources.map((source) => data[source]);
@@ -1729,7 +1773,8 @@
               sourceChartInstance = null;
             }
             // 显示错误信息
-            const chartContainer = document.getElementById("sourceChart").parentElement;
+            const chartContainer =
+              document.getElementById("sourceChart").parentElement;
             chartContainer.innerHTML =
               '<div class="error">加载失败: ' + error.message + "</div>";
           });
@@ -1797,12 +1842,17 @@
 
           // 创建包含图表的容器
           const chartWrapper = document.createElement("div");
+          // 根据当前主题设置背景色
+          const isDark = document.body.classList.contains("dark-mode");
+          const backgroundColor = isDark ? "#2c2c2c" : "white";
+          const textColor = isDark ? "#f0f0f0" : "#2c3e50";
           chartWrapper.style.cssText = `
             width: 90%;
             height: 90%;
-            background-color: white;
+            background-color: ${backgroundColor};
             border-radius: 8px;
             padding: 20px;
+            color: ${textColor};
           `;
 
           // 将图表移动到新容器中
@@ -1894,10 +1944,15 @@
 
             // 处理新的API响应格式，将数据转换为气泡图所需格式
             const bubbleData = [];
+            // 存储每天的总播放次数，用于tooltip显示
+            const dailyTotals = {};
 
             // 遍历hourly数据生成气泡图数据点
             Object.keys(data.hourly).forEach((date) => {
               const hourlyData = data.hourly[date];
+              // 计算当天总播放次数
+              dailyTotals[date] = hourlyData.total;
+
               Object.keys(hourlyData.hourly).forEach((hour) => {
                 const playCount = hourlyData.hourly[hour];
                 // 只有播放次数大于0的数据才显示
@@ -1910,6 +1965,7 @@
                     x: dateObj, // 使用Date对象而不是时间戳
                     y: parseInt(hour), // 小时（0-23）
                     r: playCount, // 播放次数作为气泡半径
+                    date: date, // 添加原始日期字符串用于tooltip
                   });
                 }
               });
@@ -1970,7 +2026,7 @@
                     display: false,
                     labels: {
                       color: darkModeOptions.color, // 暗色模式下的图例文字颜色
-                    }
+                    },
                   },
                   tooltip: {
                     callbacks: {
@@ -1978,14 +2034,18 @@
                         // 显示日期和时间
                         const point = context[0].raw;
                         const date = new Date(point.x);
-                        return `${date.getFullYear()}-${(date.getMonth() + 1)
+                        const dateString = `${date.getFullYear()}-${(
+                          date.getMonth() + 1
+                        )
                           .toString()
                           .padStart(2, "0")}-${date
                           .getDate()
                           .toString()
-                          .padStart(2, "0")} ${point.y
+                          .padStart(2, "0")}`;
+                        const dailyTotal = dailyTotals[point.date] || 0;
+                        return `${dateString} ${point.y
                           .toString()
-                          .padStart(2, "0")}:00`;
+                          .padStart(2, "0")}:00 ( 当日总计: ${dailyTotal} )`;
                       },
                       label: function (context) {
                         return `播放次数: ${context.raw.r}`;
@@ -2223,7 +2283,7 @@
                     display: false,
                     labels: {
                       color: darkModeOptions.color, // 暗色模式下的图例文字颜色
-                    }
+                    },
                   },
                 },
                 scales: {
@@ -2349,11 +2409,11 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                  legend: { 
+                  legend: {
                     display: false,
                     labels: {
                       color: darkModeOptions.color, // 暗色模式下的图例文字颜色
-                    }
+                    },
                   },
                   tooltip: {
                     callbacks: {
@@ -2379,7 +2439,7 @@
                 scales: {
                   x: {
                     beginAtZero: true,
-                    grid: { 
+                    grid: {
                       color: darkModeOptions.gridColor, // 暗色模式下的网格线颜色
                     },
                     ticks: {
@@ -2480,12 +2540,17 @@
 
           // 创建包含图表的容器
           const chartWrapper = document.createElement("div");
+          // 根据当前主题设置背景色
+          const isDark = document.body.classList.contains("dark-mode");
+          const backgroundColor = isDark ? "#2c2c2c" : "white";
+          const textColor = isDark ? "#f0f0f0" : "#2c3e50";
           chartWrapper.style.cssText = `
             width: 90%;
             height: 90%;
-            background-color: white;
+            background-color: ${backgroundColor};
             border-radius: 8px;
             padding: 20px;
+            color: ${textColor};
           `;
 
           // 将图表移动到新容器中
@@ -2682,7 +2747,9 @@
                     },
                     ticks: {
                       color: darkModeOptions.ticksColor, // 暗色模式下的刻度颜色
-                      backdropColor: isDarkMode() ? "rgba(44, 44, 44, 0.8)" : "rgba(0, 0, 0, 0.05)",
+                      backdropColor: isDarkMode()
+                        ? "rgba(44, 44, 44, 0.8)"
+                        : "rgba(0, 0, 0, 0.05)",
                     },
                     // max: Math.max(...shuffledCounts) * 1.1, // 扩大 20% 半径
                   },
@@ -3036,29 +3103,21 @@
 
         // 检查是否处于暗色模式
         const isDark = document.body.classList.contains("dark-mode");
-        
+
         // 根据主题设置颜色
         const headerBgColor = isDark ? "#3a3a3a" : "#f1f3f9";
         const borderColor = isDark ? "#444444" : "#e9ecef";
         const rowBorderColor = isDark ? "#444444" : "#e9ecef";
         const textColor = isDark ? "#f0f0f0" : "#2c3e50";
 
-        let html =
-          `<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; color: ${textColor};">`;
-        html +=
-          `<thead><tr style="background-color: ${headerBgColor}; text-align: left;">`;
-        html +=
-          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};"></th>`;
-        html +=
-          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">曲目</th>`;
-        html +=
-          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">艺术家</th>`;
-        html +=
-          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">专辑</th>`;
-        html +=
-          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">播放时间</th>`;
-        html +=
-          `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">来源</th>`;
+        let html = `<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; color: ${textColor};">`;
+        html += `<thead><tr style="background-color: ${headerBgColor}; text-align: left;">`;
+        html += `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};"></th>`;
+        html += `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">曲目</th>`;
+        html += `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">艺术家</th>`;
+        html += `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">专辑</th>`;
+        html += `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">播放时间</th>`;
+        html += `<th style="padding: 12px; border-bottom: 2px solid ${borderColor};">来源</th>`;
         html += "</tr></thead><tbody>";
 
         records.forEach((record) => {
@@ -3112,7 +3171,7 @@
 
         // 检查是否处于暗色模式
         const isDark = document.body.classList.contains("dark-mode");
-        
+
         // 设置分页信息文本颜色
         if (pageInfo) {
           pageInfo.style.color = isDark ? "var(--text-primary)" : "#2c3e50";
@@ -3231,10 +3290,10 @@
       // 页面加载完成后初始化
       document.addEventListener("DOMContentLoaded", function () {
         // 自动切换日夜模式
-        toggleDarkModeBasedOnTime();
-        
-        // 每分钟检查一次时间，自动切换模式
-        setInterval(toggleDarkModeBasedOnTime, 60000);
+        toggleDarkModeBasedOnSystem();
+
+        // 监听系统主题变化
+        watchSystemThemeChange();
 
         // 初始化各个组件
         initStats();
