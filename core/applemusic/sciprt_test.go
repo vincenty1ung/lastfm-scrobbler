@@ -85,7 +85,7 @@ func TestGetNowPlayingTrackInfo(t *testing.T) {
 		assert.Nil(t, info)
 	} else {
 		// If Music is running, we should get track info or nil (if no track is playing)
-		info := GetNowPlayingTrackInfo(ctx)
+		info := GetNowPlayingTrackInfoV2(ctx)
 		// info can be nil if no track is playing, which is valid
 		// We just ensure the function doesn't panic
 		fmt.Println(info)

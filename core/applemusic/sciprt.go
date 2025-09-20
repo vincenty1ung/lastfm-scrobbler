@@ -2,7 +2,10 @@ package applemusic
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +17,125 @@ import (
 	alog "github.com/vincenty1ung/lastfm-scrobbler/core/log"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
+
+const appleSciprtGetNowPlayingTrackInfo = `-- 安全 JSON 值转换
+on safeJSONValue(v)
+	try
+		if v is missing value then
+			return ""
+		else if (class of v is boolean) then
+			if v then
+				return "true"
+			else
+				return "false"
+			end if
+		else if (class of v is integer) or (class of v is real) then
+			return (v as string)
+		else
+			return my escapeJSON(v as string)
+		end if
+	on error
+		return ""
+	end try
+end safeJSONValue
+
+-- JSON 转义
+on escapeJSON(theText)
+	try
+		set theText to my replaceText(theText, "\\", "\\\\")
+		set theText to my replaceText(theText, "\"", "\\\"")
+		set theText to my replaceText(theText, return, "\\n")
+		set theText to my replaceText(theText, linefeed, "\\n")
+		return theText
+	on error
+		return theText
+	end try
+end escapeJSON
+
+-- 替换字符串
+on replaceText(theText, search, replace)
+	set AppleScript's text item delimiters to search
+	set theItems to every text item of theText
+	set AppleScript's text item delimiters to replace
+	set theText to theItems as string
+	set AppleScript's text item delimiters to ""
+	return theText
+end replaceText
+
+
+tell application "Music"
+	try
+		if player state is playing then
+			if exists current track then
+				set t to current track
+				
+				set json to "{"
+				set json to json & "\"name\":\"" & my safeJSONValue(name of t) & "\","
+				set json to json & "\"album\":\"" & my safeJSONValue(album of t) & "\","
+				set json to json & "\"artist\":\"" & my safeJSONValue(artist of t) & "\","
+				set json to json & "\"albumArtist\":\"" & my safeJSONValue(album artist of t) & "\","
+				set json to json & "\"duration\":\"" & my safeJSONValue(duration of t) & "\","
+				set json to json & "\"playerPosition\":\"" & my safeJSONValue(player position) & "\","
+				set json to json & "\"databaseID\":\"" & my safeJSONValue(database ID of t) & "\","
+				set json to json & "\"composer\":\"" & my safeJSONValue(composer of t) & "\","
+				set json to json & "\"albumDisliked\":\"" & my safeJSONValue(album disliked of t) & "\","
+				set json to json & "\"albumFavorited\":\"" & my safeJSONValue(album favorited of t) & "\","
+				set json to json & "\"albumRating\":\"" & my safeJSONValue(album rating of t) & "\","
+				set json to json & "\"bitRate\":\"" & my safeJSONValue(bit rate of t) & "\","
+				set json to json & "\"bookmark\":\"" & my safeJSONValue(bookmark of t) & "\","
+				set json to json & "\"bpm\":\"" & my safeJSONValue(bpm of t) & "\","
+				set json to json & "\"category\":\"" & my safeJSONValue(category of t) & "\","
+				set json to json & "\"comment\":\"" & my safeJSONValue(comment of t) & "\","
+				set json to json & "\"compilation\":\"" & my safeJSONValue(compilation of t) & "\","
+				set json to json & "\"dateAdded\":\"" & my safeJSONValue(date added of t) & "\","
+				set json to json & "\"description\":\"" & my safeJSONValue(description of t) & "\","
+				set json to json & "\"discCount\":\"" & my safeJSONValue(disc count of t) & "\","
+				set json to json & "\"discNumber\":\"" & my safeJSONValue(disc number of t) & "\","
+				set json to json & "\"disliked\":\"" & my safeJSONValue(disliked of t) & "\","
+				set json to json & "\"enabled\":\"" & my safeJSONValue(enabled of t) & "\","
+				set json to json & "\"EQ\":\"" & my safeJSONValue(EQ of t) & "\","
+				set json to json & "\"finish\":\"" & my safeJSONValue(finish of t) & "\","
+				set json to json & "\"gapless\":\"" & my safeJSONValue(gapless of t) & "\","
+				set json to json & "\"genre\":\"" & my safeJSONValue(genre of t) & "\","
+				set json to json & "\"grouping\":\"" & my safeJSONValue(grouping of t) & "\","
+				set json to json & "\"kind\":\"" & my safeJSONValue(kind of t) & "\","
+				set json to json & "\"longDescription\":\"" & my safeJSONValue(long description of t) & "\","
+				set json to json & "\"favorited\":\"" & my safeJSONValue(favorited of t) & "\","
+				set json to json & "\"lyrics\":\"" & my safeJSONValue(lyrics of t) & "\","
+				set json to json & "\"modificationDate\":\"" & my safeJSONValue(modification date of t) & "\","
+				set json to json & "\"movement\":\"" & my safeJSONValue(movement of t) & "\","
+				set json to json & "\"movementCount\":\"" & my safeJSONValue(movement count of t) & "\","
+				set json to json & "\"movementNumber\":\"" & my safeJSONValue(movement number of t) & "\","
+				set json to json & "\"playedCount\":\"" & my safeJSONValue(played count of t) & "\","
+				set json to json & "\"playedDate\":\"" & my safeJSONValue(played date of t) & "\","
+				set json to json & "\"rating\":\"" & my safeJSONValue(rating of t) & "\","
+				set json to json & "\"releaseDate\":\"" & my safeJSONValue(release date of t) & "\","
+				set json to json & "\"sampleRate\":\"" & my safeJSONValue(sample rate of t) & "\","
+				set json to json & "\"shufflable\":\"" & my safeJSONValue(shufflable of t) & "\","
+				set json to json & "\"skippedCount\":\"" & my safeJSONValue(skipped count of t) & "\","
+				set json to json & "\"skippedDate\":\"" & my safeJSONValue(skipped date of t) & "\","
+				set json to json & "\"sortAlbum\":\"" & my safeJSONValue(sort album of t) & "\","
+				set json to json & "\"sortArtist\":\"" & my safeJSONValue(sort artist of t) & "\","
+				set json to json & "\"sortAlbumArtist\":\"" & my safeJSONValue(sort album artist of t) & "\","
+				set json to json & "\"sortName\":\"" & my safeJSONValue(sort name of t) & "\","
+				set json to json & "\"sortComposer\":\"" & my safeJSONValue(sort composer of t) & "\","
+				set json to json & "\"size\":\"" & my safeJSONValue(size of t) & "\","
+				set json to json & "\"start\":\"" & my safeJSONValue(start of t) & "\","
+				set json to json & "\"trackCount\":\"" & my safeJSONValue(track count of t) & "\","
+				set json to json & "\"trackNumber\":\"" & my safeJSONValue(track number of t) & "\","
+				set json to json & "\"unplayed\":\"" & my safeJSONValue(unplayed of t) & "\","
+				set json to json & "\"volumeAdjustment\":\"" & my safeJSONValue(volume adjustment of t) & "\","
+				set json to json & "\"work\":\"" & my safeJSONValue(work of t) & "\","
+				set json to json & "\"year\":\"" & my safeJSONValue(year of t) & "\""
+				
+				set json to json & "}"
+				return json
+			end if
+		end if
+	on error errMsg
+		return "{\"error\":\"" & my escapeJSON(errMsg) & "\"}"
+	end try
+end tell`
 
 type (
 	TrackBase struct {
@@ -102,6 +224,66 @@ type (
 		VolumeAdjustment int       `json:"volume_adjustment"` // 音量调整
 		Work             string    `json:"work"`              // 作品名
 		Year             int       `json:"year"`              // 年份
+	}
+
+	tmp struct {
+		Name             string `json:"name"`
+		Album            string `json:"album"`
+		Artist           string `json:"artist"`
+		AlbumArtist      string `json:"albumArtist"`
+		Duration         string `json:"duration"`
+		PlayerPosition   string `json:"playerPosition"`
+		DatabaseID       string `json:"databaseID"`
+		Composer         string `json:"composer"`
+		AlbumDisliked    string `json:"albumDisliked"`
+		AlbumFavorited   string `json:"albumFavorited"`
+		AlbumRating      string `json:"albumRating"`
+		BitRate          string `json:"bitRate"`
+		Bookmark         string `json:"bookmark"`
+		Bpm              string `json:"bpm"`
+		Category         string `json:"category"`
+		Comment          string `json:"comment"`
+		Compilation      string `json:"compilation"`
+		DateAdded        string `json:"dateAdded"`
+		Description      string `json:"description"`
+		DiscCount        string `json:"discCount"`
+		DiscNumber       string `json:"discNumber"`
+		Disliked         string `json:"disliked"`
+		Enabled          string `json:"enabled"`
+		EQ               string `json:"EQ"`
+		Finish           string `json:"finish"`
+		Gapless          string `json:"gapless"`
+		Genre            string `json:"genre"`
+		Grouping         string `json:"grouping"`
+		Kind             string `json:"kind"`
+		LongDescription  string `json:"longDescription"`
+		Favorited        string `json:"favorited"`
+		Lyrics           string `json:"lyrics"`
+		ModificationDate string `json:"modificationDate"`
+		Movement         string `json:"movement"`
+		MovementCount    string `json:"movementCount"`
+		MovementNumber   string `json:"movementNumber"`
+		PlayedCount      string `json:"playedCount"`
+		PlayedDate       string `json:"playedDate"`
+		Rating           string `json:"rating"`
+		ReleaseDate      string `json:"releaseDate"`
+		SampleRate       string `json:"sampleRate"`
+		Shufflable       string `json:"shufflable"`
+		SkippedCount     string `json:"skippedCount"`
+		SkippedDate      string `json:"skippedDate"`
+		SortAlbum        string `json:"sortAlbum"`
+		SortArtist       string `json:"sortArtist"`
+		SortAlbumArtist  string `json:"sortAlbumArtist"`
+		SortName         string `json:"sortName"`
+		SortComposer     string `json:"sortComposer"`
+		Size             string `json:"size"`
+		Start            string `json:"start"`
+		TrackCount       string `json:"trackCount"`
+		TrackNumber      string `json:"trackNumber"`
+		Unplayed         string `json:"unplayed"`
+		VolumeAdjustment string `json:"volumeAdjustment"`
+		Work             string `json:"work"`
+		Year             string `json:"year"`
 	}
 
 	TrackInfo struct {
@@ -450,6 +632,44 @@ func GetNowPlayingTrackInfo(ctx context.Context) *TrackInfo {
 	return info
 }
 
+func GetNowPlayingTrackInfoV2(ctx context.Context) *TrackInfo {
+	// 首先检查是否正在播放
+	state, err := GetState(ctx)
+	if err != nil || state != common.PlayerStatePlaying {
+		// 如果没有播放或获取状态出错，返回nil
+		return nil
+	}
+
+	// 使用更简洁的AppleScript代码获取所有相关信息
+	tell, err := run(appleSciprtGetNowPlayingTrackInfo)
+	if err != nil {
+		alog.Warn(ctx, "AppleScript runtime error:", zap.String("response", tell))
+		return nil
+	}
+
+	// 检查是否有错误
+	if strings.HasPrefix(tell, "error:") {
+		alog.Warn(ctx, "AppleScript runtime error:", zap.String("response", tell))
+		return nil
+	}
+
+	// 如果没有返回数据，说明没有播放曲目
+	if tell == "" {
+		return nil
+	}
+
+	// 解析AppleScript返回的记录格式数据
+	// 格式类似于: {name:Song Title, album:Album Name, artist:Artist Name, ...}
+	tmp, err := parseTrackInfo(tell)
+	if err != nil {
+		alog.Warn(ctx, "AppleScript parse error:", zap.String("response", tell))
+		return nil
+	}
+	trackInfo := convertTmpToTrackBase(tmp)
+	trackInfo.IsMusicApp = true
+	return trackInfo
+}
+
 // IsFavorite checks if the current track is favorited in Apple Music
 func IsFavorite(ctx context.Context) (bool, error) {
 	tell, err := applesciprt.Tell(
@@ -484,4 +704,181 @@ func SetFavorite(ctx context.Context, favorited bool) error {
 	}
 	alog.Info(ctx, "apple music. Track loved successfully")
 	return nil
+}
+func parseTrackInfo(output string) (*tmp, error) {
+	var info tmp
+	err := json.Unmarshal([]byte(output), &info)
+	if err != nil {
+		return nil, err
+	}
+	return &info, nil
+}
+
+// Build the AppleScript command from a set of optional parameters, return the output
+func run(command string) (string, error) {
+	cmd := exec.Command("osascript", "-e", command)
+	output, err := cmd.CombinedOutput()
+	prettyOutput := strings.Replace(string(output), "\n", "", -1)
+
+	// Ignore errors from the user hitting the cancel button
+	if err != nil && strings.Index(string(output), "User canceled.") < 0 {
+		return "", errors.New(err.Error() + ": " + prettyOutput + " (" + command + ")")
+	}
+
+	return prettyOutput, nil
+}
+
+func convertTmpToTrackBase(t *tmp) *TrackInfo {
+	result := new(TrackInfo)
+
+	// 字符串直接赋值字段
+	result.Title = t.Name // tmp的Name对应TrackBase的Title
+	result.Album = t.Album
+	result.Artist = t.Artist
+	result.AlbumArtist = t.AlbumArtist
+	result.Composer = t.Composer
+	result.Genre = common.ConversionSimplifiedFx(t.Genre)
+	result.DurationString = t.Duration // 保留原始字符串格式的时长
+	result.EQ = t.EQ
+	result.Category = t.Category
+	result.Comment = t.Comment
+	result.Description = t.Description
+	result.Grouping = t.Kind
+	result.Kind = t.Kind
+	result.LongDescription = t.LongDescription
+	result.Lyrics = t.Lyrics
+	result.Movement = t.Movement
+	result.SortAlbum = t.SortAlbum
+	result.SortArtist = t.SortArtist
+	result.SortAlbumArtist = t.SortAlbumArtist
+	result.SortName = t.SortName
+	result.SortComposer = t.SortComposer
+	result.Work = t.Work
+
+	// 整数类型转换
+	result.Duration = int64(parseFloat(t.Duration))
+	result.TrackNumber = parseInt(t.TrackNumber)
+	result.DatabaseID = parseInt(t.DatabaseID)
+	result.AlbumRating = parseInt(t.AlbumRating)
+	result.BitRate = parseInt(t.BitRate)
+	result.BPM = parseInt(t.Bpm)
+	result.DiscCount = parseInt(t.DiscCount)
+	result.DiscNumber = parseInt(t.DiscNumber)
+	result.MovementCount = parseInt(t.MovementCount)
+	result.MovementNumber = parseInt(t.MovementNumber)
+	result.PlayedCount = parseInt(t.PlayedCount)
+	result.Rating = parseInt(t.Rating)
+	result.SampleRate = parseInt(t.SampleRate)
+	result.SkippedCount = parseInt(t.SkippedCount)
+	result.Size = parseInt64(t.Size)
+	result.TrackCount = parseInt(t.TrackCount)
+	result.VolumeAdjustment = parseInt(t.VolumeAdjustment)
+	result.Year = parseInt(t.Year)
+
+	// 浮点类型转换
+	result.Position = parseFloat(t.PlayerPosition)
+	result.Bookmark = parseFloat(t.Bookmark)
+	result.Finish = parseFloat(t.Finish)
+	result.Start = parseFloat(t.Start)
+
+	// 布尔类型转换
+	result.AlbumDisliked = parseBool(t.AlbumDisliked)
+	result.AlbumFavorited = parseBool(t.AlbumFavorited)
+	result.Compilation = parseBool(t.Compilation)
+	result.Disliked = parseBool(t.Disliked)
+	result.Enabled = parseBool(t.Enabled)
+	result.Gapless = parseBool(t.Gapless)
+	result.Favorited = parseBool(t.Favorited)
+	result.Shufflable = parseBool(t.Shufflable)
+	result.Unplayed = parseBool(t.Unplayed)
+
+	// 时间类型转换（尝试多种常见格式）
+	result.DateAdded = parseTime(t.DateAdded)
+	result.ModificationDate = parseTime(t.ModificationDate)
+	result.PlayedDate = parseTime(t.PlayedDate)
+	result.ReleaseDate = parseTime(t.ReleaseDate)
+	result.SkippedDate = parseTime(t.SkippedDate)
+
+	return result
+}
+
+// 辅助函数：将字符串转换为int
+func parseInt(s string) int {
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return val
+}
+
+// 辅助函数：将字符串转换为int64
+func parseInt64(s string) int64 {
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return val
+}
+
+// 辅助函数：将字符串转换为float64
+func parseFloat(s string) float64 {
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+	return val
+}
+
+// 辅助函数：将字符串转换为bool
+func parseBool(s string) bool {
+	// 处理常见的布尔值表示形式
+	switch s {
+	case "true", "1", "yes":
+		return true
+	case "false", "0", "no", "":
+		return false
+	default:
+		// 尝试直接解析
+		val, _ := strconv.ParseBool(s)
+		return val
+	}
+}
+
+// 辅助函数：将字符串转换为time.Time
+func parseTime(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	// 尝试不同的日期格式
+	if t, err := common.ParseChineseTime(s); err == nil {
+		return t
+	} else {
+		// 尝试多种常见的时间格式
+		formats := []string{
+			time.RFC3339,
+			"2006-01-02T15:04:05",
+			"2006-01-02 15:04:05",
+			"2006-01-02",
+			"01/02/2006",
+		}
+
+		for _, format := range formats {
+			t, err := time.Parse(format, s)
+			if err == nil {
+				return t
+			}
+		}
+
+		// 尝试Unix时间戳（秒）
+		if unix, err := strconv.ParseInt(s, 10, 64); err == nil {
+			return time.Unix(unix, 0)
+		}
+
+		// 尝试Unix时间戳（毫秒）
+		if unixMs, err := strconv.ParseInt(s, 10, 64); err == nil {
+			return time.Unix(unixMs/1000, (unixMs%1000)*1e6)
+		}
+	}
+
+	return time.Time{}
 }

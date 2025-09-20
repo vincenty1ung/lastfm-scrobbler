@@ -96,7 +96,7 @@ func (a *AppleMusicPlayerController) GetState(ctx context.Context) (string, erro
 }
 
 func (a *AppleMusicPlayerController) GetNowPlayingTrackInfo(ctx context.Context) PlayerInfoHandler {
-	info := applemusic.GetNowPlayingTrackInfo(ctx)
+	info := applemusic.GetNowPlayingTrackInfoV2(ctx)
 	if info == nil {
 		return nil
 	}
@@ -122,4 +122,3 @@ func (a *AppleMusicPlayerController) IsFavorite(ctx context.Context) bool {
 	}
 	return favorite
 }
-
