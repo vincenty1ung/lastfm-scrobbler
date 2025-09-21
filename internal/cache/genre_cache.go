@@ -143,7 +143,7 @@ func (gc *GenreCache) StartRefreshTimer(ctx context.Context) context.CancelFunc 
 	gc.cancel = cancel
 
 	// Create a ticker for 6 hours
-	gc.ticker = time.NewTicker(6 * time.Hour)
+	gc.ticker = time.NewTicker(1 * time.Hour)
 
 	go func() {
 		defer gc.ticker.Stop()
