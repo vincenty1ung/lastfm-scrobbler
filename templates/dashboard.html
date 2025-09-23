@@ -949,6 +949,75 @@
       .dark-mode .progress-time {
         color: var(--text-secondary);
       }
+
+      /* 模态框样式 */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.4);
+      }
+
+      .modal-content {
+        background-color: var(--card-bg);
+        margin: 5% auto;
+        padding: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        width: 80%;
+        max-width: 600px;
+        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+        animation-name: animatetop;
+        animation-duration: 0.3s;
+      }
+
+      @keyframes animatetop {
+        from {top: -300px; opacity: 0}
+        to {top: 0; opacity: 1}
+      }
+
+      .modal-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        color: var(--text-primary);
+      }
+
+      .close {
+        color: var(--text-secondary);
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .close:hover,
+      .close:focus {
+        color: var(--text-primary);
+      }
+
+      .modal-body {
+        padding: 20px;
+        color: var(--text-primary);
+      }
+
+      .modal-body .track-info p {
+        margin: 10px 0;
+      }
+
+      .modal-body .track-info strong {
+        color: var(--primary-color);
+      }
     </style>
   </head>
   <body>
@@ -2862,6 +2931,12 @@
                                   </div>
                               `;
 
+              // 添加点击事件处理
+              rankingItem.addEventListener('click', function() {
+                showTrackDetails(item.artist, item.album, item.track);
+              });
+              rankingItem.style.cursor = 'pointer';
+
               recentPlaysList.appendChild(rankingItem);
             });
 
@@ -2950,6 +3025,12 @@
                                   </div>
                               `;
 
+              // 添加点击事件处理
+              rankingItem.addEventListener('click', function() {
+                showTrackDetails(item.artist, item.album, item.track);
+              });
+              rankingItem.style.cursor = 'pointer';
+
               recentPlaysList.appendChild(rankingItem);
             });
 
@@ -3015,6 +3096,12 @@
                                   </div>
                                   <div class="play-count">${item.play_count} 次</div>
                               `;
+
+              // 添加点击事件处理
+              rankingItem.addEventListener('click', function() {
+                showTrackDetails(item.artist, item.album, item.track);
+              });
+              rankingItem.style.cursor = 'pointer';
 
               rankingList.appendChild(rankingItem);
             });
@@ -3515,6 +3602,114 @@
           .getElementById("favoriteButton")
           .addEventListener("click", handleFavoriteButtonClick);
       });
+
+      // 添加查看详情模态框相关函数
+      // 显示模态框
+      function showModal(modalId) {
+        document.getElementById(modalId).style.display = "block";
+      }
+
+      // 隐藏模态框
+      function hideModal(modalId) {
+        document.getElementById(modalId).style.display = "none";
+      }
+
+      // 获取并显示曲目详细信息
+      function showTrackDetails(artist, album, trackName) {
+        // 显示加载状态
+        const modalContent = document.querySelector("#trackDetailsModal .modal-content");
+        modalContent.innerHTML = `<div class="loading">加载中...</div>`;
+        showModal("trackDetailsModal");
+
+        // 从后端获取详细信息
+        fetch(`/api/track?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&trackName=${encodeURIComponent(trackName)}`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error("网络响应错误");
+            }
+            return response.json();
+          })
+          .then(data => {
+            // 渲染详细信息
+            renderTrackDetails(data);
+          })
+          .catch(error => {
+            console.error("获取曲目详情失败:", error);
+            modalContent.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+          });
+      }
+
+      // 渲染曲目详细信息
+      function renderTrackDetails(track) {
+        const modalContent = document.querySelector("#trackDetailsModal .modal-content");
+        
+        // 格式化播放时间
+        const formatDuration = (seconds) => {
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60);
+          return `${mins}:${secs.toString().padStart(2, "0")}`;
+        };
+
+        // 根据来源设置样式
+        let sourceClass = "";
+        let sourceText = "";
+        switch (track.source?.toLowerCase()) {
+          case "apple music":
+            sourceClass = "source-applemusic";
+            sourceText = "AppleMusic";
+            break;
+          case "audirvana":
+          case "au":
+            sourceClass = "source-audirvana";
+            sourceText = "Audirvana";
+            break;
+          case "roon":
+            sourceClass = "source-roon";
+            sourceText = "Roon";
+            break;
+          default:
+            sourceClass = "";
+            sourceText = track.source || "Unknown";
+        }
+
+        // 根据喜欢状态设置显示文本
+        const appleMusicFavText = track.is_apple_music_fav ? "是" : "否";
+        const lastFmFavText = track.is_last_fm_fav ? "是" : "否";
+
+        modalContent.innerHTML = `
+          <div class="modal-header">
+            <h2>${track.track}</h2>
+            <span class="close" onclick="hideModal('trackDetailsModal')">×</span>
+          </div>
+          <div class="modal-body">
+            <div class="track-info">
+              <p><strong>艺术家:</strong> ${track.artist}</p>
+              <p><strong>专辑:</strong> ${track.album}</p>
+              <p><strong>播放次数:</strong> ${track.play_count}</p>
+              ${track.duration ? `<p><strong>时长:</strong> ${formatDuration(track.duration)}</p>` : ''}
+              ${track.track_number ? `<p><strong>曲目编号:</strong> ${track.track_number}</p>` : ''}
+              ${track.genre ? `<p><strong>流派:</strong> ${track.genre}</p>` : ''}
+              ${track.composer ? `<p><strong>作曲家:</strong> ${track.composer}</p>` : ''}
+              ${track.release_date ? `<p><strong>发行日期:</strong> ${track.release_date}</p>` : ''}
+              ${track.music_brainz_id ? `<p><strong>MusicBrainz ID:</strong> ${track.music_brainz_id}</p>` : ''}
+              <p><strong>喜欢苹果音乐:</strong> ${appleMusicFavText}</p>
+              <p><strong>喜欢Last.fm:</strong> ${lastFmFavText}</p>
+              <p><strong>数据来源:</strong> <span class="play-source ${sourceClass}">${sourceText}</span></p>
+              ${track.bundle_id ? `<p><strong>应用标识符:</strong> ${track.bundle_id}</p>` : ''}
+              ${track.unique_id ? `<p><strong>唯一标识符:</strong> ${track.unique_id}</p>` : ''}
+              <p><strong>创建时间:</strong> ${new Date(track.created_at).toLocaleString('zh-CN')}</p>
+              <p><strong>更新时间:</strong> ${new Date(track.updated_at).toLocaleString('zh-CN')}</p>
+            </div>
+          </div>
+        `;
+      }
     </script>
+    
+    <!-- 曲目详情模态框 -->
+    <div id="trackDetailsModal" class="modal">
+      <div class="modal-content">
+        <!-- 内容将通过JavaScript动态填充 -->
+      </div>
+    </div>
   </body>
 </html>

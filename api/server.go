@@ -130,9 +130,9 @@ func setupRouter(name string) *gin.Engine {
 		},
 	)
 
-	// Get play count for a specific track
+	// Get play for a specific track
 	r.GET(
-		"/api/track-play-count", func(c *gin.Context) {
+		"/api/track", func(c *gin.Context) {
 			artist := c.Query("artist")
 			album := c.Query("album")
 			trackName := c.Query("trackName")
@@ -658,12 +658,12 @@ func setupRouter(name string) *gin.Engine {
 			}
 
 			// 将 req.IDs 从 []uint 转换为 []int64
-		ids := make([]int64, len(req.IDs))
-		for i, id := range req.IDs {
-			ids[i] = int64(id)
-		}
+			ids := make([]int64, len(req.IDs))
+			for i, id := range req.IDs {
+				ids[i] = int64(id)
+			}
 
-		// 调用logic层方法同步选中的记录
+			// 调用logic层方法同步选中的记录
 			successCount, failedRecords, err := trackService.SyncSelectedUnscrobbledRecords(ctx, ids)
 			if err != nil {
 				log.Error(ctx, "Failed to sync selected unscrobbled records", zap.Error(err))

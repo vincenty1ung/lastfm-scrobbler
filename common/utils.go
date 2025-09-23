@@ -85,3 +85,11 @@ func ArtistCustomFit(artist string) string {
 	}
 	return artist
 }
+
+// CustomReplaceStringFunction 替换字符串函数
+func CustomReplaceStringFunction(target string) string {
+	if strings.ContainsAny(target, "’") {
+		return strings.ReplaceAll(target, "’", "'")
+	}
+	return target
+}
