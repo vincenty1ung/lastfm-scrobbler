@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"sync"
 
@@ -53,8 +53,8 @@ type WsTrackInfo struct {
 		Artist     string `json:"artist"`
 		AppleMusic bool   `json:"apple_music"`
 		LastFM     bool   `json:"lastfm"`
-		Duration   int64  `json:"duration"` //歌曲时长，单位秒
-		Position   int64  `json:"position"` //歌曲当前播放位置，单位秒
+		Duration   int64  `json:"duration"` // 歌曲时长，单位秒
+		Position   int64  `json:"position"` // 歌曲当前播放位置，单位秒
 	} `json:"data"`
 }
 

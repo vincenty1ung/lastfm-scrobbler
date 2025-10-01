@@ -10,3 +10,10 @@
 /shell/bin/nowplaying-cli-mac
 /venv/
 internal/model/ddl
+frontend/node_modules
+/node_modules/
+/config/config.yaml
+frontend/package-lock.json
+frontend/dist/
+.cursor/rules/
+.github/

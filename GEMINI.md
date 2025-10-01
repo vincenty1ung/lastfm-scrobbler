@@ -1,45 +1,84 @@
 # 项目概述
 
-这是一个用 Go 语言编写的音乐播放记录同步工具，主要用于将 Audirvana 和 Roon 播放的音乐曲目同步（Scrobble）到 Last.fm。项目通过定时检查播放状态，获取当前播放曲目的信息，并在满足一定条件（如播放进度达到 55%）时将曲目信息上报到 Last.fm。
+这是一个用 Go 语言编写的音乐播放记录同步工具，主要用于将 Audirvana, Roon 和 Apple Music 播放的音乐曲目同步（Scrobble）到 Last.fm。项目通过定时检查播放状态，获取当前播放曲目的信息，并在满足一定条件（如播放进度达到 55%）时将曲目信息上报到 Last.fm。
 
-## 新增功能概览
+除了同步功能，该项目还提供了丰富的功能，包括：
 
-1. **本地数据库存储**: 使用 SQLite 通过 GORM 实现本地数据持久化，存储播放记录和播放统计。
-2. **播放记录追踪**: 记录每次播放的详细信息，包括艺术家、专辑、曲目、播放时间等。
-3. **播放统计**: 统计每首曲目的播放次数，使用乐观锁机制保证并发安全。
-4. **数据同步**: 将未同步到 Last.fm 的播放记录进行同步，并标记同步状态。
+- **本地数据存储**: 使用 SQLite 通过 GORM 实现本地数据持久化，存储播放记录和播放统计。
+- **Web 界面**: 提供一个 Web 界面，包括仪表板、报告和推荐功能。
+- **播放记录追踪**: 记录每次播放的详细信息，包括艺术家、专辑、曲目、播放时间等。
+- **播放统计**: 统计每首曲目的播放次数，使用乐观锁机制保证并发安全。
+- **数据同步**: 将未同步到 Last.fm 的播放记录进行同步，并标记同步状态。
+- **命令行工具**: 提供多个命令行工具，用于数据同步、音乐分析和内存管理。
 
 ## 主要技术栈
 
 - **语言**: Go 1.24
 - **依赖管理**: Go Modules
-- **数据库**: SQLite (通过 GORM)
+- **Web 框架**: Gin
+- **数据库**: SQLite (通过 GORM), MySQL (可选)
+- **缓存**: Redis
 - **链路跟踪**: OpenTelemetry
 - **主要依赖库**:
   - `github.com/spf13/cobra` - 命令行接口
   - `github.com/spf13/viper` - 配置管理
   - `go.uber.org/zap` - 日志记录
   - `github.com/shkh/lastfm-go` - Last.fm API 客户端
-  - `github.com/milindmadhukar/go-musixmatch` - Musixmatch API 客户端 (当前被注释)
   - `github.com/andybrewer/mack` - AppleScript 执行
   - `gorm.io/gorm` - ORM 框架
   - `gorm.io/driver/sqlite` - SQLite 驱动
+  - `gorm.io/driver/mysql` - MySQL 驱动
+  - `github.com/gorilla/websocket` - WebSocket 支持
+  - `github.com/longbridgeapp/opencc` - 简繁体中文转换
   - `go.opentelemetry.io/otel` - OpenTelemetry SDK
 
 ## 项目架构
 
 - `main.go`: 程序入口，使用 Cobra 设置命令行参数并启动服务。
+- `api/`: 基于 Gin 的 API 服务器，处理 HTTP 请求。
+- `cmd/`: 命令行工具的实现。
+  - `analysis_cmd.go`: 音乐分析。
+  - `memory_tool.go`: 内存管理。
+  - `sync_records.go`: 数据同步。
+- `common/`: 通用工具函数，如中文转换。
 - `config/`: 配置管理模块，使用 Viper 解析 `config.yaml`。
-- `scrobbler/`: 核心逻辑模块，负责检查播放状态、获取曲目信息、与 Last.fm 交互。
-- `audirvana/`: 与 Audirvana 应用交互的模块，通过 AppleScript 获取播放信息。
-- `roon/`: 与 Roon 应用交互的模块 (具体实现未在本次分析中详细查看)。
-- `log/`: 日志模块，基于 Zap 实现。
-- `model/`: 数据模型和数据库操作模块，使用 GORM 实现。
+- `core/`: 核心功能模块，如日志、数据库、Redis、遥测等。
+- `internal/`: 项目内部逻辑。
+  - `cache/`: 缓存逻辑。
+  - `logic/`: 业务逻辑，分为 `analysis`, `genre`, `track`。
+  - `model/`: 数据模型和数据库操作。
+  - `scrobbler/`: 核心同步逻辑。
 - `shell/`: 包含用于构建、启动和停止服务的 shell 脚本。
+- `static/`: 存放 Web 界面的静态文件（图片等）。
+- `templates/`: Web 界面的 HTML 模板。
 - `.storage/`: 本地数据存储目录。
-- `telemetry/`: 链路跟踪模块，集成 OpenTelemetry 实现分布式追踪。
 
 ## 数据模型
+
+### Track
+
+`Track` 模型存储了关于每个音轨的详细信息，包括播放统计和用户偏好。
+
+- **ID**: 主键
+- **Artist**: 艺术家
+- **AlbumArtist**: 专辑艺术家
+- **Album**: 专辑
+- **Track**: 曲目名
+- **TrackNumber**: 音轨号
+- **Duration**: 持续时间
+- **Genre**: 流派
+- **Composer**: 作曲家
+- **ReleaseDate**: 发布日期
+- **MusicBrainzID**: MusicBrainz ID
+- **PlayCount**: 播放次数
+- **IsAppleMusicFav**: 是否为 Apple Music 喜欢
+- **IsLastFmFav**: 是否为 Last.fm 喜欢
+- **Source**: 数据来源 (Apple Music, Audirvana, Roon)
+- **BundleID**: 应用标识符
+- **UniqueID**: 唯一标识符
+- **Version**: 乐观锁版本号
+- **CreatedAt**: 创建时间
+- **UpdatedAt**: 更新时间
 
 ### TrackPlayRecord (播放记录)
 
@@ -55,42 +94,31 @@
 - Scrobbled: 是否已同步到 Last.fm
 - MusicBrainzID: MusicBrainz ID
 - TrackNumber: 音轨号
-- Source: 数据来源（Audirvana 或 Roon）
+- Source: 数据来源（Audirvana, Roon, Apple Music）
 - CreatedAt: 创建时间
 - UpdatedAt: 更新时间
 
-### TrackPlayCount (播放统计)
+### Genre (流派)
 
-统计每首曲目的播放次数：
+存储音乐流派信息：
 
-- ID: 主键
-- Artist: 艺术家
-- Album: 专辑名
-- Track: 曲目名
-- PlayCount: 播放次数
-- Version: 乐观锁版本号
-- CreatedAt: 创建时间
-- UpdatedAt: 更新时间
+- **ID**: 主键
+- **Name**: 流派名称 (英文)
+- **NameZh**: 流派名称 (中文)
+- **Extra**: 额外信息
+- **PlayCount**: 播放次数
+- **CreatedAt**: 创建时间
+- **UpdatedAt**: 更新时间
 
-## 核心功能实现
+## Web 界面
 
-### 数据库初始化
+项目提供了一个简单的 Web 界面，用于：
 
-在 `model/db.go` 中实现数据库连接和初始化，使用自定义日志记录器集成 zap 和 OpenTelemetry。
+- **仪表板**: 显示当前的播放信息。
+- **推荐**: 根据播放历史提供音乐推荐。
+- **报告**: 生成音乐播放报告。
 
-### 链路跟踪
-
-在 `telemetry/telemetry.go` 中实现 OpenTelemetry 的初始化和配置，包括 tracer provider 和 exporter 的设置。在各个关键模块中创建 span 来跟踪请求和操作的执行过程。
-
-### 播放记录存储
-
-在 `model/track_play_record.go` 中实现播放记录的插入、更新和查询功能。
-
-### 播放统计
-
-在 `model/track_play_count.go` 中实现播放次数的增加和查询功能，使用乐观锁机制处理并发更新。
-
-# 构建和运行
+## 构建和运行
 
 ## 配置
 
@@ -104,24 +132,24 @@ go build
 
 ## 运行
 
-````bash
+```bash
 ./lastfm-scrobbler
-```lastfm-scrobbler
+```
 
-## 使用脚本运行
-lastfm-scrobbler
+### 使用脚本运行
+
 项目提供了 shell 脚本来简化构建和运行过程：
 
-```bashlastfm-scrobbler
+```bash
 # 构建 launchctl 服务
 sh shell/script/build_lastfm-scrobblers_launchctl.sh
 
 # 启动服务
 sh shell/script/start_lastfm-scrobblers.sh
-lastfm-scrobbler
+
 # 停止服务
 sh shell/script/stop_lastfm-scrobblers.sh
-````
+```
 
 ## 查看日志
 
