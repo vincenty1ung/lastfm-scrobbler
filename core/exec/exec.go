@@ -427,7 +427,7 @@ func (receiver *WavInfo) GetArtist() string {
 
 // GetAlbumartist returns the album artist
 func (receiver *WavInfo) GetAlbum() string {
-	return ""
+	return receiver.Product
 }
 
 // GetTrackNumber returns the track number

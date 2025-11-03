@@ -57,15 +57,29 @@ func TestGetNowPlayingTrackInfoFields(t *testing.T) {
 			} else {
 				if info.Title == "" {
 					t.Error("TrackInfo.Title is empty")
+				} else {
+					fmt.Println(info.Title)
 				}
 				if info.Artist == "" {
 					t.Error("TrackInfo.Artist is empty")
+				} else {
+					fmt.Println(info.Artist)
+				}
+				if info.Album == "" {
+					t.Error("TrackInfo.Album is empty")
+				} else {
+					fmt.Println(info.Album)
+					fmt.Println(info.MataDataHandle.GetAlbum())
 				}
 				if info.Duration <= 0 {
 					t.Error("TrackInfo.Duration should be positive")
+				} else {
+					fmt.Println(info.Duration)
 				}
 				if info.Position < 0 {
 					t.Error("TrackInfo.Position should not be negative")
+				} else {
+					fmt.Println(info.Position)
 				}
 			}
 		}

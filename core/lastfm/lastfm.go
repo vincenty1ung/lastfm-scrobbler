@@ -64,7 +64,6 @@ type (
 		MusicBrainzTrackID string `json:"mbid,optional"`        // The MusicBrainz Track ID.
 		Context            string `json:"context,optional"`     // Sub-client version (not public, only enabled for certain API keys)
 		Duration           int64  `json:"duration,optional"`    // The length of the track in seconds.
-
 	}
 	TrackGetInfoReq struct {
 		base
@@ -74,7 +73,6 @@ type (
 		// Album              string `json:"album"`         // album
 		MusicBrainzTrackID string `json:"mbid,optional"` // The MusicBrainz Track ID.
 		Username           string `json:"username"`      // username
-
 	}
 	TrackUpdateNowPlayingResp struct {
 		XMLName XMLName `json:"XMLName"`
@@ -177,6 +175,7 @@ func InitLastfmApi(
 		}
 	}
 }
+
 func promptUser(url string) bool {
 	fmt.Println("请在浏览器中打开以下URL，并完成验证码验证:")
 	fmt.Println(url)
@@ -197,17 +196,16 @@ func (t *PushTrackScrobbleReq) ToMap() (res map[string]interface{}, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return
+	return res, err
 }
 
 func (t *TrackUpdateNowPlayingReq) ToMap() (res map[string]interface{}, err error) {
 	res = make(map[string]any)
 	err = common.Decode(t, &res)
 	if err != nil {
-
 		return nil, err
 	}
-	return
+	return res, err
 }
 
 func (t *TrackGetInfoReq) ToMap() (res map[string]interface{}, err error) {
@@ -216,7 +214,7 @@ func (t *TrackGetInfoReq) ToMap() (res map[string]interface{}, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return
+	return res, err
 }
 
 /*
@@ -258,7 +256,7 @@ func GetLovedTracksUser(user string, limit int) (result *GetLovedTracksResp, err
 	if err != nil {
 		return nil, err
 	}
-	return
+	return result, err
 }
 
 func PushTrackScrobble(ctx context.Context, req *PushTrackScrobbleReq) (string, error) {

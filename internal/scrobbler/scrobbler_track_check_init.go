@@ -11,8 +11,6 @@ import (
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
 
-
-
 var (
 	newTrackService = track.NewTrackService()
 	one             sync.Once

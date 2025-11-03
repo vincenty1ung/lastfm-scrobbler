@@ -17,3 +17,4 @@ frontend/package-lock.json
 frontend/dist/
 .cursor/rules/
 .github/
+.gemini/
