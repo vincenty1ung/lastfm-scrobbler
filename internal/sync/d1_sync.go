@@ -66,13 +66,15 @@ func (c *D1Client) SyncTracks(ctx context.Context, incremental bool) error {
 
 	// 获取最后同步时间
 	var lastSyncTime time.Time
-	if incremental {
-		var err error
-		lastSyncTime, err = c.getLastSyncTime(ctx, "tracks")
-		if err != nil {
-			log.Warn(ctx, "Failed to get last sync time, performing full sync", zap.Error(err))
-			incremental = false
-		}
+	var err error
+	lastSyncTime, err = c.getLastSyncTime(ctx, "tracks")
+	if err != nil {
+		log.Warn(ctx, "Failed to get last sync time, performing full sync", zap.Error(err))
+		incremental = false
+	}
+	if !lastSyncTime.IsZero() {
+		incremental = true
+		log.Info(ctx, "Starting D1 tracks sync lastSyncTime", zap.Bool("incremental", incremental))
 	}
 
 	// 从本地数据库获取曲目数据
@@ -162,7 +164,8 @@ func (c *D1Client) upsertTracksBatch(ctx context.Context, tracks []*model.Track)
 
 	for i, track := range tracks {
 		placeholders[i] = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-		args = append(args,
+		args = append(
+			args,
 			track.Artist,
 			track.Album,
 			track.Track,
@@ -178,12 +181,14 @@ func (c *D1Client) upsertTracksBatch(ctx context.Context, tracks []*model.Track)
 		)
 	}
 
-	query := fmt.Sprintf(`
+	query := fmt.Sprintf(
+		`
 		INSERT OR REPLACE INTO tracks (
 			artist, album, track, album_artist, play_count, genre, duration, source,
 			is_apple_music_fav, is_last_fm_fav, created_at, updated_at
 		) VALUES %s
-	`, strings.Join(placeholders, ", "))
+	`, strings.Join(placeholders, ", "),
+	)
 
 	if _, err := c.db.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("failed to batch upsert tracks: %w", err)
@@ -196,14 +201,17 @@ func (c *D1Client) upsertTracksBatch(ctx context.Context, tracks []*model.Track)
 func (c *D1Client) SyncPlayRecords(ctx context.Context, incremental bool) error {
 	log.Info(ctx, "Starting D1 play records sync", zap.Bool("incremental", incremental))
 
+	// 获取最后同步时间
 	var lastSyncTime time.Time
-	if incremental {
-		var err error
-		lastSyncTime, err = c.getLastSyncTime(ctx, "track_play_records")
-		if err != nil {
-			log.Warn(ctx, "Failed to get last sync time, performing full sync", zap.Error(err))
-			incremental = false
-		}
+	var err error
+	lastSyncTime, err = c.getLastSyncTime(ctx, "track_play_records")
+	if err != nil {
+		log.Warn(ctx, "Failed to get last sync time, performing full sync", zap.Error(err))
+		incremental = false
+	}
+	if !lastSyncTime.IsZero() {
+		incremental = true
+		log.Info(ctx, "Starting D1 records sync lastSyncTime", zap.Bool("incremental", incremental))
 	}
 
 	records, err := c.getPlayRecordsFromLocal(ctx, incremental, lastSyncTime)
@@ -254,10 +262,12 @@ func (c *D1Client) batchUpsertPlayRecords(ctx context.Context, records []*model.
 		batch := records[i:end]
 		currentBatch := (i / batchSize) + 1
 
-		log.Info(ctx, "Syncing play records batch",
+		log.Info(
+			ctx, "Syncing play records batch",
 			zap.Int("batch", currentBatch),
 			zap.Int("total_batches", totalBatches),
-			zap.Int("batch_size", len(batch)))
+			zap.Int("batch_size", len(batch)),
+		)
 
 		if err := c.upsertPlayRecordsBatch(ctx, batch); err != nil {
 			return fmt.Errorf("failed to upsert play records batch %d: %w", currentBatch, err)
@@ -277,7 +287,8 @@ func (c *D1Client) upsertPlayRecordsBatch(ctx context.Context, records []*model.
 
 	for i, record := range records {
 		placeholders[i] = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-		args = append(args,
+		args = append(
+			args,
 			record.Artist,
 			record.AlbumArtist,
 			record.Album,
@@ -291,11 +302,13 @@ func (c *D1Client) upsertPlayRecordsBatch(ctx context.Context, records []*model.
 		)
 	}
 
-	query := fmt.Sprintf(`
+	query := fmt.Sprintf(
+		`
 		INSERT OR REPLACE INTO track_play_records (
 			artist, album_artist, album, track, duration, play_time, scrobbled, source, created_at, updated_at
 		) VALUES %s
-	`, strings.Join(placeholders, ", "))
+	`, strings.Join(placeholders, ", "),
+	)
 
 	if _, err := c.db.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("failed to batch upsert play records: %w", err)
@@ -307,16 +320,18 @@ func (c *D1Client) upsertPlayRecordsBatch(ctx context.Context, records []*model.
 func (c *D1Client) SyncGenres(ctx context.Context, incremental bool) error {
 	log.Info(ctx, "Starting D1 genres sync", zap.Bool("incremental", incremental))
 
+	// 获取最后同步时间
 	var lastSyncTime time.Time
-	if incremental {
-		var err error
-		lastSyncTime, err = c.getLastSyncTime(ctx, "genres")
-		if err != nil {
-			log.Warn(ctx, "Failed to get last sync time, performing full sync", zap.Error(err))
-			incremental = false
-		}
+	var err error
+	lastSyncTime, err = c.getLastSyncTime(ctx, "genres")
+	if err != nil {
+		log.Warn(ctx, "Failed to get last sync time, performing full sync", zap.Error(err))
+		incremental = false
 	}
-
+	if !lastSyncTime.IsZero() {
+		incremental = true
+		log.Info(ctx, "Starting D1 tracks sync lastSyncTime", zap.Bool("incremental", incremental))
+	}
 	genres, err := c.getGenresFromLocal(ctx, incremental, lastSyncTime)
 	if err != nil {
 		return fmt.Errorf("failed to get genres from local db: %w", err)
@@ -341,7 +356,9 @@ func (c *D1Client) SyncGenres(ctx context.Context, incremental bool) error {
 	return nil
 }
 
-func (c *D1Client) getGenresFromLocal(ctx context.Context, incremental bool, lastSyncTime time.Time) ([]*model.Genre, error) {
+func (c *D1Client) getGenresFromLocal(ctx context.Context, incremental bool, lastSyncTime time.Time) (
+	[]*model.Genre, error,
+) {
 	if incremental {
 		log.Info(ctx, "Performing incremental sync for genres", zap.Time("last_sync_time", lastSyncTime))
 		return model.GetGenresUpdatedSince(ctx, lastSyncTime)
@@ -363,10 +380,12 @@ func (c *D1Client) batchUpsertGenres(ctx context.Context, genres []*model.Genre)
 		batch := genres[i:end]
 		currentBatch := (i / batchSize) + 1
 
-		log.Info(ctx, "Syncing genres batch",
+		log.Info(
+			ctx, "Syncing genres batch",
 			zap.Int("batch", currentBatch),
 			zap.Int("total_batches", totalBatches),
-			zap.Int("batch_size", len(batch)))
+			zap.Int("batch_size", len(batch)),
+		)
 
 		if err := c.upsertGenresBatch(ctx, batch); err != nil {
 			return fmt.Errorf("failed to upsert genres batch %d: %w", currentBatch, err)
@@ -386,7 +405,8 @@ func (c *D1Client) upsertGenresBatch(ctx context.Context, genres []*model.Genre)
 
 	for i, genre := range genres {
 		placeholders[i] = "(?, ?, ?, ?, ?)"
-		args = append(args,
+		args = append(
+			args,
 			genre.Name,
 			genre.NameZh,
 			genre.PlayCount,
@@ -395,11 +415,13 @@ func (c *D1Client) upsertGenresBatch(ctx context.Context, genres []*model.Genre)
 		)
 	}
 
-	query := fmt.Sprintf(`
+	query := fmt.Sprintf(
+		`
 		INSERT OR REPLACE INTO genres (
 			name, name_zh, play_count, created_at, updated_at
 		) VALUES %s
-	`, strings.Join(placeholders, ", "))
+	`, strings.Join(placeholders, ", "),
+	)
 
 	if _, err := c.db.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("failed to batch upsert genres: %w", err)
