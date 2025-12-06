@@ -156,9 +156,17 @@ router.get('/api/dashboard/trend', async (req, env) => {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - range);
         const startDateStr = startDate.toISOString();
+        // D1/SQLite 的 strftime 默认处理 UTC。如果数据库存的是带时区字符串 ('... +08:00')，它可能通过 datetime() 会转成 UTC。
+        // 为了确保按 +08:00 时区显示 (例如 12:00 UTC 是 20:00 CN)，我们需要显式调整。
+        // 假设 play_time 是 ISO8601 格式字符串。
+        // 如果存储的是 'YYYY-MM-DDTHH:MM:SS+08:00'，SQLite 的 datetime(play_time) 会归一化为 UTC。
+        // 所以我们用 datetime(play_time, '+8 hours') 来获取北京时间的小时。
 
         const {results} = await db.prepare(`
-            SELECT strftime('%Y-%m-%d', play_time) as date, strftime('%H', play_time) as hour, COUNT(*) as count
+            SELECT 
+              strftime('%Y-%m-%d', datetime(play_time, '+8 hours')) as date, 
+              strftime('%H', datetime(play_time, '+8 hours')) as hour, 
+              COUNT(*) as count
             FROM track_play_records
             WHERE play_time >= ?
             GROUP BY date, hour
