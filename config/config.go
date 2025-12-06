@@ -16,6 +16,7 @@ type Config struct {
 	HTTP       HTTPConfig       `yaml:"http"`
 	Telemetry  TelemetryConfig  `yaml:"telemetry"`
 	Redis      RedisConfig      `yaml:"redis"`
+	Cloudflare CloudflareConfig `yaml:"cloudflare"`
 	Scrobblers []string         `yaml:"scrobblers"`
 	IsDev      bool             `yaml:"isDev"`
 }
@@ -89,6 +90,14 @@ type RedisConfig struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 	DB       int    `yaml:"db"`
+}
+
+type CloudflareConfig struct {
+	AccountID    string `yaml:"accountId"`
+	APIToken     string `yaml:"apiToken"`
+	D1DatabaseID string `yaml:"d1DatabaseId"`
+	SyncEnabled  bool   `yaml:"syncEnabled"`  // 是否启用 D1 同步
+	SyncInterval int    `yaml:"syncInterval"` // 同步间隔(小时)
 }
 
 func InitConfig(filePath string) {

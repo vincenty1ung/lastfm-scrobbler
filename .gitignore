@@ -2,7 +2,7 @@
 /.logs/go_lastfm-scrobbler.log
 /core/exec/.logs/
 /shell/bin/lastfm-scrobbler
-/config/config_bak.yaml
+/config/config_*.yaml
 /internal/scrobbler/.logs/
 /.logs/
 /.storage/
@@ -18,3 +18,6 @@ frontend/dist/
 .cursor/rules/
 .github/
 .gemini/
+/cloudflare/worker_project/.wrangler/
+/cloudflare/web_project/.wrangler/
+/cloudflare/worker_project/wrangler.toml

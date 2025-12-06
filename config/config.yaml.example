@@ -1,0 +1,21 @@
+# Cloudflare D1 同步配置示例
+# 将此配置添加到你的 config/config.yaml 文件中
+
+cloudflare:
+  account_id: "your_cloudflare_account_id"      # Cloudflare Account ID
+  api_token: "your_cloudflare_api_token"        # Cloudflare API Token (需要 D1 权限)
+  d1_database_id: "your_d1_database_id"         # D1 数据库 ID
+  sync_enabled: true                             # 是否启用 D1 同步
+  sync_interval: 24                              # 同步间隔(小时),默认 24 小时
+
+# 注意事项:
+# 1. **安全性**: api_token 具有账户权限,切勿提交到 Git 仓库
+# 2. **获取 Account ID**: 在 Cloudflare Dashboard 右侧可以找到
+# 3. **创建 API Token**: 
+#    - 访问: https://dash.cloudflare.com/profile/api-tokens
+#    - 创建 Token,权限需要包括: "D1:Edit"
+# 4. **创建 D1 数据库**:
+#    wrangler d1 create lastfm-scrobbler-db
+#    # 复制返回的 database_id 到此处
+# 5. **初始化数据库表**:
+#    wrangler d1 execute lastfm-scrobbler-db --file=./cloudflare/d1_schema.sql
