@@ -19,44 +19,46 @@ var (
 
 // StartD1SyncScheduler 启动 D1 同步定时器
 func StartD1SyncScheduler(ctx context.Context) {
-	schedulerOnce.Do(func() {
-		cfg := config.ConfigObj.Cloudflare
+	schedulerOnce.Do(
+		func() {
+		start:
+			cfg := config.ConfigObj.Cloudflare
+			// 检查是否启用同步
+			if !cfg.SyncEnabled {
+				log.Info(ctx, "D1 sync is disabled in config")
+				return
+			}
 
-		// 检查是否启用同步
-		if !cfg.SyncEnabled {
-			log.Info(ctx, "D1 sync is disabled in config")
-			return
-		}
+			// 创建 D1 客户端
+			var err error
+			d1Client, err = NewD1Client(&cfg)
+			if err != nil {
+				log.Error(ctx, "Failed to create D1 client", zap.Error(err))
+				goto start
+			}
 
-		// 创建 D1 客户端
-		var err error
-		d1Client, err = NewD1Client(&cfg)
-		if err != nil {
-			log.Error(ctx, "Failed to create D1 client", zap.Error(err))
-			return
-		}
-
-		// 确保在上下文取消时关闭客户端
-		go func() {
-			<-ctx.Done()
-			if d1Client != nil {
-				if err := d1Client.Close(); err != nil {
-					log.Error(context.Background(), "Failed to close D1 client", zap.Error(err))
+			// 确保在上下文取消时关闭客户端
+			go func() {
+				<-ctx.Done()
+				if d1Client != nil {
+					if err := d1Client.Close(); err != nil {
+						log.Error(context.Background(), "Failed to close D1 client", zap.Error(err))
+					}
 				}
-			}
-		}()
+			}()
 
-		// 首次启动时立即执行一次同步
-		go func() {
-			log.Info(ctx, "Performing initial D1 sync")
-			if err := d1Client.SyncAll(ctx, false); err != nil {
-				log.Error(ctx, "Initial D1 sync failed", zap.Error(err))
-			}
-		}()
+			// 首次启动时立即执行一次同步
+			go func() {
+				log.Info(ctx, "Performing initial D1 sync")
+				if err := d1Client.SyncAll(ctx, false); err != nil {
+					log.Error(ctx, "Initial D1 sync failed", zap.Error(err))
+				}
+			}()
 
-		// 启动定时同步
-		go runSyncLoop(ctx, &cfg)
-	})
+			// 启动定时同步
+			go runSyncLoop(ctx, &cfg)
+		},
+	)
 }
 
 // runSyncLoop 运行同步循环

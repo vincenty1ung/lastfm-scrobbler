@@ -16,7 +16,7 @@
 		<string>./shell/bin/lastfm-scrobbler</string>
 		<string>-m</string>
 		<string>-c</string>
-		<string>./config/config_bak.yaml</string>
+		<string>./config/config_dev.yaml</string>
 	</array>
     <key>WorkingDirectory</key>
     <string>/Users/vincent/Developer/code/other/lastfm-scrobbler/</string>

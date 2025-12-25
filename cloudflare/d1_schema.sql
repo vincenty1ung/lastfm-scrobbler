@@ -59,6 +59,10 @@ CREATE TABLE IF NOT EXISTS genres (
 -- 创建索引
 CREATE INDEX IF NOT EXISTS idx_genres_play_count ON genres(play_count DESC);
 
+-- 新增优化索引
+CREATE INDEX IF NOT EXISTS idx_tracks_genre_play_count ON tracks(genre, play_count DESC);
+CREATE INDEX IF NOT EXISTS idx_tracks_artist_track ON tracks(artist, track);
+
 -- 同步元数据表 (记录最后同步时间)
 CREATE TABLE IF NOT EXISTS sync_metadata (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

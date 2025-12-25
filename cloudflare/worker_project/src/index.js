@@ -100,8 +100,37 @@ router.options('/api/.*', () => new Response(null, {headers: corsHeaders}));
 
 // --- API Endpoints ---
 
+// 缓存处理函数
+async function withCache(request, env, handler, ttl = 300) {
+    const cacheUrl = new URL(request.url);
+    const cacheKey = new Request(cacheUrl.toString(), request);
+    const cache = caches.default;
+
+    let response = await cache.match(cacheKey);
+    if (response) {
+        console.log(`Cache HIT for ${request.url}`);
+        return response;
+    }
+
+    console.log(`Cache MISS for ${request.url}`);
+    response = await handler(request, env);
+
+    // 只有 200 OK 才缓存
+    if (response.status === 200) {
+        // 克隆响应以便修改 headers
+        response = new Response(response.body, response);
+        response.headers.set("Cache-Control", `public, max-age=${ttl}`);
+        // 写入缓存
+        // waitUntil 并不是必需的，但在 worker 中为了不阻塞返回可以使用 ctx.waitUntil，
+        // 不过 api 简单封装下直接 put 也可以。
+        // 注意：Cache API 不支持 PUT 带有 "Set-Cookie" 的 Response，这里 API 应该没这个问题。
+        await cache.put(cacheKey, response.clone());
+    }
+    return response;
+}
+
 // Dashboard Stats
-router.get('/api/dashboard/stats', async (req, env) => {
+router.get('/api/dashboard/stats', (req, env, ctx) => withCache(req, env, async (req, env) => {
     try {
         const db = env.DB;
         console.log("Accessing /api/dashboard/stats");
@@ -122,14 +151,14 @@ router.get('/api/dashboard/stats', async (req, env) => {
 
         console.log("Stats query result:", JSON.stringify(result));
 
-        return jsonResponse(result, {"Cache-Control": "public, max-age=300"});
+        return jsonResponse(result);
     } catch (err) {
         return errorResponse(err.message);
     }
-});
+}, 300));
 
 // Play Counts by Source
-router.get('/api/dashboard/play-counts-by-source', async (req, env) => {
+router.get('/api/dashboard/play-counts-by-source', (req, env, ctx) => withCache(req, env, async (req, env) => {
     try {
         const db = env.DB;
         const {results} = await db.prepare("SELECT source, count(source) as count FROM track_play_records GROUP BY source").all();
@@ -141,14 +170,14 @@ router.get('/api/dashboard/play-counts-by-source', async (req, env) => {
             else if (key.toLowerCase() === "roon") key = "Roon";
             response[key] = (response[key] || 0) + row.count;
         });
-        return jsonResponse(response, {"Cache-Control": "public, max-age=300"});
+        return jsonResponse(response);
     } catch (err) {
         return errorResponse(err.message);
     }
-});
+}, 300));
 
 // Trend
-router.get('/api/dashboard/trend', async (req, env) => {
+router.get('/api/dashboard/trend', (req, env, ctx) => withCache(req, env, async (req, env) => {
     try {
         const db = env.DB;
         const url = new URL(req.url);
@@ -156,12 +185,7 @@ router.get('/api/dashboard/trend', async (req, env) => {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - range);
         const startDateStr = startDate.toISOString();
-        // D1/SQLite 的 strftime 默认处理 UTC。如果数据库存的是带时区字符串 ('... +08:00')，它可能通过 datetime() 会转成 UTC。
-        // 为了确保按 +08:00 时区显示 (例如 12:00 UTC 是 20:00 CN)，我们需要显式调整。
-        // 假设 play_time 是 ISO8601 格式字符串。
-        // 如果存储的是 'YYYY-MM-DDTHH:MM:SS+08:00'，SQLite 的 datetime(play_time) 会归一化为 UTC。
-        // 所以我们用 datetime(play_time, '+8 hours') 来获取北京时间的小时。
-
+        
         const {results} = await db.prepare(`
             SELECT 
               strftime('%Y-%m-%d', datetime(play_time, '+8 hours')) as date, 
@@ -183,158 +207,178 @@ router.get('/api/dashboard/trend', async (req, env) => {
             hourlyData[row.date].total += row.count;
         });
 
-        return jsonResponse({hourly: hourlyData}, {"Cache-Control": "public, max-age=60"});
+        return jsonResponse({hourly: hourlyData});
     } catch (err) {
         return errorResponse(err.message);
     }
-});
+}, 60)); // 趋势图缓存 60秒
 
 // Top Artists
 router.get('/api/dashboard/top-artists/:type', async (req, env) => {
-    try {
-        const db = env.DB;
-        const url = new URL(req.url);
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        const type = req.params.type;
-
-        let query = "";
-        if (type === "tracks") {
-            query = "SELECT artist, COUNT(*) as track_count FROM tracks GROUP BY artist ORDER BY track_count DESC LIMIT ?";
-        } else {
-            query = "SELECT artist, SUM(play_count) as play_count FROM tracks GROUP BY artist ORDER BY play_count DESC LIMIT ?";
+    // 带有参数的路由可以也缓存，但 key 要注意。Cache API 默认用 URL 做 key，所以不同 type 不同 limit 都会有不同缓存，没问题。
+    return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const url = new URL(req.url);
+            const limit = parseInt(url.searchParams.get("limit") || "10");
+            const type = req.params.type;
+    
+            let query = "";
+            if (type === "tracks") {
+                query = "SELECT artist, COUNT(*) as track_count FROM tracks GROUP BY artist ORDER BY track_count DESC LIMIT ?";
+            } else {
+                query = "SELECT artist, SUM(play_count) as play_count FROM tracks GROUP BY artist ORDER BY play_count DESC LIMIT ?";
+            }
+            const {results} = await db.prepare(query).bind(limit).all();
+            return jsonResponse(results);
+        } catch (err) {
+            return errorResponse(err.message);
         }
-        const {results} = await db.prepare(query).bind(limit).all();
-        return jsonResponse(results, {"Cache-Control": "public, max-age=300"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+    }, 300);
 });
 
 // Top Albums
 router.get('/api/dashboard/top-albums', async (req, env) => {
-    try {
-        const db = env.DB;
-        const url = new URL(req.url);
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        const days = parseInt(url.searchParams.get("days") || "30");
-
-        let results;
-        if (days > 3650) {
-            ({results} = await db.prepare("SELECT album, artist, SUM(play_count) as play_count FROM tracks GROUP BY album, artist ORDER BY play_count DESC LIMIT ?").bind(limit).all());
-        } else {
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - days);
-            const startDateStr = startDate.toISOString();
-            ({results} = await db.prepare("SELECT album, album_artist as artist, COUNT(*) as play_count FROM track_play_records WHERE play_time >= ? GROUP BY album, album_artist ORDER BY play_count DESC LIMIT ?").bind(startDateStr, limit).all());
+    return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const url = new URL(req.url);
+            const limit = parseInt(url.searchParams.get("limit") || "10");
+            const days = parseInt(url.searchParams.get("days") || "30");
+    
+            let results;
+            if (days > 3650) {
+                ({results} = await db.prepare("SELECT album, artist, SUM(play_count) as play_count FROM tracks GROUP BY album, artist ORDER BY play_count DESC LIMIT ?").bind(limit).all());
+            } else {
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - days);
+                const startDateStr = startDate.toISOString();
+                ({results} = await db.prepare("SELECT album, album_artist as artist, COUNT(*) as play_count FROM track_play_records WHERE play_time >= ? GROUP BY album, album_artist ORDER BY play_count DESC LIMIT ?").bind(startDateStr, limit).all());
+            }
+            return jsonResponse(results);
+        } catch (err) {
+            return errorResponse(err.message);
         }
-        return jsonResponse(results, {"Cache-Control": "public, max-age=300"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+    }, 300);
 });
 
 // Top Genres
 router.get('/api/dashboard/top-genres', async (req, env) => {
-    try {
-        const db = env.DB;
-        const url = new URL(req.url);
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        const {results} = await db.prepare("select tg.track_genre_name, tg.track_genre_count, g.name_zh as genre_name_zh, g.play_count as genre_count from (select genre as track_genre_name, sum(play_count) as track_genre_count from tracks where genre != '' group by genre order by track_genre_count desc limit ?) as tg left join genres as g on tg.track_genre_name = g.name").bind(limit).all();
-        return jsonResponse(results, {"Cache-Control": "public, max-age=300"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+    return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const url = new URL(req.url);
+            const limit = parseInt(url.searchParams.get("limit") || "10");
+            const {results} = await db.prepare("select tg.track_genre_name, tg.track_genre_count, g.name_zh as genre_name_zh, g.play_count as genre_count from (select genre as track_genre_name, sum(play_count) as track_genre_count from tracks where genre != '' group by genre order by track_genre_count desc limit ?) as tg left join genres as g on tg.track_genre_name = g.name").bind(limit).all();
+            return jsonResponse(results);
+        } catch (err) {
+            return errorResponse(err.message);
+        }
+    }, 300);
 });
 
-// Recent Plays
+// Recent Plays - 不建议缓存太久，或者不缓存，看实时性要求。这里设一个极短的缓存或者不缓存。
+// 用户只在刷新时才看，所以可以短缓存 10s 防止并发刷。
 router.get('/api/recent-plays', async (req, env) => {
-    try {
-        const db = env.DB;
-        const url = new URL(req.url);
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        const offset = parseInt(url.searchParams.get("offset") || "0");
-        const {results} = await db.prepare("SELECT artist, album, track, play_time, source FROM track_play_records ORDER BY play_time DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
-        return jsonResponse(results, {"Cache-Control": "public, max-age=60"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+    return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const url = new URL(req.url);
+            const limit = parseInt(url.searchParams.get("limit") || "10");
+            const offset = parseInt(url.searchParams.get("offset") || "0");
+            const {results} = await db.prepare("SELECT artist, album, track, play_time, source FROM track_play_records ORDER BY play_time DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
+            return jsonResponse(results);
+        } catch (err) {
+            return errorResponse(err.message);
+        }
+    }, 10); 
 });
 
 // Track Details
 router.get('/api/track', async (req, env) => {
-    try {
-        const db = env.DB;
-        const url = new URL(req.url);
-        const artist = url.searchParams.get("artist");
-        const trackName = url.searchParams.get("trackName");
-        if (!artist || !trackName) return errorResponse("Missing parameters", 400);
-
-        const track = await db.prepare("SELECT * FROM tracks WHERE artist = ? AND track = ? LIMIT 1").bind(artist, trackName).first();
-        if (!track) return errorResponse("Track not found", 404);
-        return jsonResponse(track, {"Cache-Control": "public, max-age=3600"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+    return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const url = new URL(req.url);
+            const artist = url.searchParams.get("artist");
+            const trackName = url.searchParams.get("trackName");
+            if (!artist || !trackName) return errorResponse("Missing parameters", 400);
+    
+            const track = await db.prepare("SELECT * FROM tracks WHERE artist = ? AND track = ? LIMIT 1").bind(artist, trackName).first();
+            if (!track) return errorResponse("Track not found", 404);
+            return jsonResponse(track);
+        } catch (err) {
+            return errorResponse(err.message);
+        }
+    }, 3600); // 详情页可以缓存很久
 });
 
 // Track Play Counts (Total)
 router.get('/api/track-play-counts', async (req, env) => {
-    try {
-        const db = env.DB;
-        const url = new URL(req.url);
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        const offset = parseInt(url.searchParams.get("offset") || "0");
-        const {results} = await db.prepare("SELECT artist, album, track, play_count FROM tracks ORDER BY play_count DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
-        return jsonResponse(results, {"Cache-Control": "public, max-age=300"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+    return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const url = new URL(req.url);
+            const limit = parseInt(url.searchParams.get("limit") || "10");
+            const offset = parseInt(url.searchParams.get("offset") || "0");
+            const {results} = await db.prepare("SELECT artist, album, track, play_count FROM tracks ORDER BY play_count DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
+            return jsonResponse(results);
+        } catch (err) {
+            return errorResponse(err.message);
+        }
+    }, 300);
 });
 
 // Track Play Counts (Period)
 router.get('/api/track-play-counts/period', async (req, env) => {
-    try {
-        const db = env.DB;
-        const url = new URL(req.url);
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        const offset = parseInt(url.searchParams.get("offset") || "0");
-        const period = url.searchParams.get("period") || "week";
-
-        let days = 7;
-        if (period === "month") days = 30; else if (period === "year") days = 365;
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
-        const startDateStr = startDate.toISOString();
-
-        const {results} = await db.prepare("SELECT artist, album, track, COUNT(*) as play_count FROM track_play_records WHERE play_time >= ? GROUP BY artist, album, track ORDER BY play_count DESC LIMIT ? OFFSET ?").bind(startDateStr, limit, offset).all();
-        return jsonResponse(results, {"Cache-Control": "public, max-age=300"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+    return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const url = new URL(req.url);
+            const limit = parseInt(url.searchParams.get("limit") || "10");
+            const offset = parseInt(url.searchParams.get("offset") || "0");
+            const period = url.searchParams.get("period") || "week";
+    
+            let days = 7;
+            if (period === "month") days = 30; else if (period === "year") days = 365;
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+            const startDateStr = startDate.toISOString();
+    
+            const {results} = await db.prepare("SELECT artist, album, track, COUNT(*) as play_count FROM track_play_records WHERE play_time >= ? GROUP BY artist, album, track ORDER BY play_count DESC LIMIT ? OFFSET ?").bind(startDateStr, limit, offset).all();
+            return jsonResponse(results);
+        } catch (err) {
+            return errorResponse(err.message);
+        }
+    }, 300);
 });
 
-// Unscrobbled Records
+// Unscrobbled Records - 这个比较实时，但也可以稍微缓存一下
 router.get('/api/unscrobbled-records/count', async (req, env) => {
-    try {
-        const db = env.DB;
-        const {results} = await db.prepare("SELECT COUNT(*) as count FROM track_play_records WHERE scrobbled = 0").first();
-        return jsonResponse({count: results?.count || 0}, {"Cache-Control": "public, max-age=60"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+    return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const {results} = await db.prepare("SELECT COUNT(*) as count FROM track_play_records WHERE scrobbled = 0").first();
+            return jsonResponse({count: results?.count || 0});
+        } catch (err) {
+            return errorResponse(err.message);
+        }
+    }, 10);
 });
 
 router.get('/api/unscrobbled-records', async (req, env) => {
-    try {
-        const db = env.DB;
-        const url = new URL(req.url);
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        const offset = parseInt(url.searchParams.get("offset") || "0");
-        const {results} = await db.prepare("SELECT * FROM track_play_records WHERE scrobbled = 0 ORDER BY play_time DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
-        return jsonResponse(results, {"Cache-Control": "public, max-age=60"});
-    } catch (err) {
-        return errorResponse(err.message);
-    }
+     return withCache(req, env, async (req, env) => {
+        try {
+            const db = env.DB;
+            const url = new URL(req.url);
+            const limit = parseInt(url.searchParams.get("limit") || "10");
+            const offset = parseInt(url.searchParams.get("offset") || "0");
+            const {results} = await db.prepare("SELECT * FROM track_play_records WHERE scrobbled = 0 ORDER BY play_time DESC LIMIT ? OFFSET ?").bind(limit, offset).all();
+            return jsonResponse(results);
+        } catch (err) {
+            return errorResponse(err.message);
+        }
+     }, 10);
 });
 
 // Stubs
