@@ -2,6 +2,7 @@ package scrobbler
 
 import (
 	"context"
+	"strings"
 
 	"github.com/vincenty1ung/lastfm-scrobbler/common"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/exec"
@@ -23,6 +24,10 @@ func (r *RoonTrackInfoWrapper) GetAlbum() string {
 }
 
 func (r *RoonTrackInfoWrapper) GetArtist() string {
+	splits := strings.Split(r.Artist, ",")
+	if len(splits) > 0 {
+		return r.baseWrapper.ConversionSimplified(splits[0])
+	}
 	return r.baseWrapper.ConversionSimplified(r.Artist)
 }
 
