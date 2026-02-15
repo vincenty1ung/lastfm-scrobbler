@@ -3,12 +3,15 @@ package api
 import (
 	"context"
 	"html/template"
+	"io"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel/trace"
@@ -16,9 +19,11 @@ import (
 
 	"github.com/vincenty1ung/lastfm-scrobbler/config"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/log"
+	"github.com/vincenty1ung/lastfm-scrobbler/core/lyrics"
 	"github.com/vincenty1ung/lastfm-scrobbler/core/websocket"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/logic/analysis"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/logic/genre"
+	"github.com/vincenty1ung/lastfm-scrobbler/internal/logic/insight"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/logic/track"
 	"github.com/vincenty1ung/lastfm-scrobbler/internal/model"
 )
@@ -35,6 +40,22 @@ func setupRouter(name string) *gin.Engine {
 			c.Next()
 		},
 	)
+
+	// V2前端静态文件服务
+	/*r.Static("/v2/assets", "./frontend-v2/dist/assets")
+	r.StaticFile("/v2/favicon.ico", "./frontend-v2/dist/favicon.ico")
+	// SPA回退路由，所有/v2/*路由都返回index.html
+	r.GET("/v2/*filepath", func(c *gin.Context) {
+		c.File("./frontend-v2/dist/index.html")
+	})*/
+
+	r.StaticFile("/static/chartjs-adapter-date-fns.bundle.min.js", "./static/chartjs-adapter-date-fns.bundle.min.js")
+	r.StaticFile("/static/html2canvas.min.js", "./static/html2canvas.min.js")
+	r.StaticFile("/static/chart.js", "./static/chart.js")
+	r.StaticFile("/static/logo.svg", "./static/logo.svg")
+	r.StaticFile("/static/logo_black.svg", "./static/logo_black.svg")
+	r.StaticFile("/static/logo_all.svg", "./static/logo_all.svg")
+	r.StaticFile("/static/logo_all_black.svg", "./static/logo_all_black.svg")
 
 	// 首页
 	r.GET(
@@ -60,6 +81,12 @@ func setupRouter(name string) *gin.Engine {
 
 	// Get track play counts with pagination
 	trackService := track.NewTrackService()
+	// AI 歌词解析服务
+	insightService, insightErr := insight.NewService()
+	if insightErr != nil {
+		// 记录日志但不阻断整个服务启动，前端调用时再返回错误
+		log.Warn(context.Background(), "初始化歌词解析服务失败，将暂时无法使用 AI 歌词解析功能", zap.Error(insightErr))
+	}
 	r.GET(
 		"/api/track-play-counts", func(c *gin.Context) {
 			limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
@@ -130,6 +157,38 @@ func setupRouter(name string) *gin.Engine {
 		},
 	)
 
+	// 获取当前系统支持的 AI 分析模型
+	r.GET(
+		"/api/ai-models", func(c *gin.Context) {
+			if insightService == nil {
+				c.JSON(http.StatusOK, gin.H{"models": []string{}})
+				return
+			}
+			models := insightService.GetAvailableAIProviders()
+			c.JSON(http.StatusOK, gin.H{"models": models})
+		},
+	)
+
+	// 获取某首歌已有的 AI 解析结果 (仅查询)
+	r.GET(
+		"/api/track-insight", func(c *gin.Context) {
+			artist := c.Query("artist")
+			album := c.Query("album")
+			track := c.Query("track")
+
+			if artist == "" || track == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "参数不足"})
+				return
+			}
+			insights, err := insightService.GetInsightOnly(c.Request.Context(), artist, album, track)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"insights": insights})
+		},
+	)
+
 	// Get play for a specific track
 	r.GET(
 		"/api/track", func(c *gin.Context) {
@@ -153,6 +212,236 @@ func setupRouter(name string) *gin.Engine {
 			}
 
 			c.JSON(http.StatusOK, record)
+		},
+	)
+
+	// 获取 / 生成某首歌的歌词解析结果
+	r.POST(
+		"/api/track-insight", func(c *gin.Context) {
+			if insightService == nil {
+				c.JSON(
+					http.StatusServiceUnavailable, gin.H{
+						"error": "AI 歌词解析服务未正确初始化，请检查 OPENAI_API_KEY 等配置",
+					},
+				)
+				return
+			}
+
+			var req struct {
+				Artist    string `json:"artist"`
+				Album     string `json:"album"`
+				Track     string `json:"track"`
+				ModelType string `json:"modelType"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+				return
+			}
+
+			ctx := c.Request.Context()
+			// POST 接口语义为强制分析
+			insights, cached, err := insightService.GetOrCreateInsight(
+				ctx, req.Artist, req.Album, req.Track, true, req.ModelType,
+			)
+			if err != nil {
+				log.Error(
+					ctx, "获取或生成歌词解析失败",
+					zap.String("artist", req.Artist),
+					zap.String("album", req.Album),
+					zap.String("track", req.Track),
+					zap.Error(err),
+				)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "生成歌词解析失败"})
+				return
+			}
+
+			c.JSON(
+				http.StatusOK, gin.H{
+					"insights": insights,
+					"cached":   cached,
+				},
+			)
+		},
+	)
+
+	// 流式获取歌词解析结果 (SSE)
+	r.GET(
+		"/api/track-insight-stream", func(c *gin.Context) {
+			if insightService == nil {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"error": "AI 服务未初始化"})
+				return
+			}
+
+			artist := c.Query("artist")
+			album := c.Query("album")
+			track := c.Query("track")
+			force, _ := strconv.ParseBool(c.DefaultQuery("force", "false"))
+			modelType := c.Query("modelType")
+
+			if artist == "" || track == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "参数不足"})
+				return
+			}
+
+			ch, _, err := insightService.GetOrCreateInsightStream(
+				c.Request.Context(), artist, album, track, force, modelType,
+			)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			// 设置 SSE 必要的 Response Headers
+			c.Header("Content-Type", "text/event-stream")
+			c.Header("Cache-Control", "no-cache")
+			c.Header("Connection", "keep-alive")
+			c.Header("Transfer-Encoding", "chunked")
+			// 针对 Nginx 等代理，禁用响应缓冲，实现真正的实时流
+			c.Header("X-Accel-Buffering", "no")
+
+			c.Stream(
+				func(w io.Writer) bool {
+					if chunk, ok := <-ch; ok {
+						// 写入 SSE 格式消息：data: <content>\n\n
+						c.Render(
+							-1, sse.Event{
+								Event: "message",
+								Data:  chunk,
+							},
+						)
+						return true
+					}
+					return false
+				},
+			)
+		},
+	)
+
+	// 对某次歌词解析结果进行点赞 / 点踩反馈
+	r.POST(
+		"/api/track-insight/:id/feedback", func(c *gin.Context) {
+			if insightService == nil {
+				c.JSON(
+					http.StatusServiceUnavailable, gin.H{
+						"error": "AI 歌词解析服务未正确初始化，请检查配置",
+					},
+				)
+				return
+			}
+
+			idStr := c.Param("id")
+			insightID, err := strconv.ParseInt(idStr, 10, 64)
+			if err != nil || insightID <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 insight ID"})
+				return
+			}
+
+			var req struct {
+				Score   int    `json:"score"`   // 1 点赞，-1 点踩
+				Comment string `json:"comment"` // 可选备注
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+				return
+			}
+
+			ctx := c.Request.Context()
+			if err := insightService.RecordFeedback(ctx, insightID, req.Score, req.Comment); err != nil {
+				log.Error(
+					ctx, "记录歌词解析反馈失败",
+					zap.Int64("insight_id", insightID),
+					zap.Int("score", req.Score),
+					zap.Error(err),
+				)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "记录反馈失败"})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		},
+	)
+
+	// 获取歌词数据（优先查库，没有则调用 lrcapi 等）
+	r.GET(
+		"/api/track-lyrics", func(c *gin.Context) {
+			artist := c.Query("artist")
+			album := c.Query("album")
+			track := c.Query("track")
+
+			if artist == "" || track == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "缺少必需参数 artist 和 track"})
+				return
+			}
+
+			// 尝试从服务层 helper 获取（重用逻辑）
+			// 由于 service 层没有暴露 getOrFetchLyrics，如果需要复用逻辑最好暴露出来，
+			// 或者在这里重新实现一遍查询 + 保存逻辑。
+			// 鉴于 server.go 不应包含太多业务逻辑，理想做法是在 insightService 暴露一个 GetLyrics 方法。
+			// 但既然现在在修改 server.go，我们可以直接查 model。
+
+			// 1. 查询数据库 TrackLyrics
+			ctx := c.Request.Context()
+			lyricsData, err := model.GetTrackLyrics(ctx, artist, album, track)
+
+			lrcContent := ""
+			if err == nil {
+				lrcContent = lyricsData.LyricsOriginal
+			} else {
+				// 2. 如果数据库没有，尝试调用 provider (这里简单的复用 insightService 可能没有直接暴露获取单独歌词的方法
+				// 如果 server.go 这里不能方便调用 lrcapi，那最好是在 insightService 加一个 GetLyrics 方法。
+				// 这里的代码我们暂时复用 logic/insight 里的逻辑，或者直接调用 provider。
+				// 为了保持整洁，我们在 handler 里临时实例化 provider 是不推荐的。
+				// 最好的方案：修改 api/server.go 为调用 insightService.GetLyrics(...)。
+				// 但现在为了快速修复编译错误并跑通功能，我们假设如果找不到就返回空，或者前端触发 /api/track-insight 时会自动补全。
+				// 用户需求里说“前端页面点击歌词查看歌词的时候可以直接调用lrcapi在没有歌词数据的时候获取歌词数据”。
+				// 所以这里必须实现“没有则获取”的逻辑。
+
+				// 简化起见，我们在 server.go 不直接依赖具体的 lrcapi implementation，
+				// 而是应该让 insight service 提供这个能力。
+				// 但由于 insight package 的 NewService 返回的是 interface，我们需要在 interface 加方法。
+				// 让我们先暂时在这里只读库。如果用户点击“分析”，分析过程会补全歌词。
+				// 如果用户只是点“查看歌词”，我们希望也能触发获取。
+				// 所以最好是修改 Insight Service 接口。
+
+				// **修正方案**：我们假设先只读库。如果为空，前端显示无歌词。
+				// 实际上用户期望的是“在没有歌词数据的时候获取歌词数据”。
+				// 我们可以在这里简单调用 lrcapi，因为 server.go 已经 import 了 "github.com/vincenty1ung/lastfm-scrobbler/core/lyrics"
+
+				// 实例化一个临时的 provider 列表 (不太优雅但有效)
+				lrcProvider := lyrics.NewLrcAPIProvider()
+				fetched, lErr := lrcProvider.GetLyrics(ctx, artist, album, track)
+				if lErr == nil && fetched != "" {
+					lrcContent = fetched
+					// 异步入库
+					go func() {
+						bgCtx := context.Background()
+						newLyrics := &model.TrackLyrics{
+							Artist:         artist,
+							Album:          album,
+							Track:          track,
+							LyricsOriginal: fetched,
+							LyricsSource:   "lrcapi",
+							Synced:         strings.Contains(fetched, "[") && strings.Contains(fetched, "]"),
+						}
+						_, _ = model.GetOrCreateTrackLyrics(bgCtx, newLyrics)
+					}()
+				}
+			}
+
+			// 判断歌词是否包含 LRC 时间戳格式
+			hasLRC := false
+			if lrcContent != "" {
+				lrcPattern := `\[\d{1,2}:\d{2}[\.\d]*\]`
+				matched, _ := regexp.MatchString(lrcPattern, lrcContent)
+				hasLRC = matched
+			}
+
+			c.JSON(
+				http.StatusOK, gin.H{
+					"lyrics":  lrcContent,
+					"has_lrc": hasLRC,
+				},
+			)
 		},
 	)
 

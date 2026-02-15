@@ -3,39 +3,141 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>音乐播放统计系统 - 仪表板</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <title>音眸轨迹</title>
+    <link rel="icon" type="image/svg+xml" href="../static/logo.svg" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/svg+xml" href="../static/logo_black.svg" media="(prefers-color-scheme: dark)" />
+    <script src="../static/chart.js"></script>
+    <script src="../static/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="../static/html2canvas.min.js"></script>
     <style>
       :root {
-        --primary-color: #3498db;
-        --secondary-color: #2ecc71;
-        --background-color: #f8f9fa;
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --primary-color: #667eea;
+        --secondary-color: #764ba2;
+        --background-color: #f0f2f5;
         --accent-color: #e74c3c;
         --text-primary: #2c3e50;
         --text-secondary: #7f8c8d;
-        --card-bg: #ffffff;
-        --border-color: #e9ecef;
+        --card-bg: rgba(255, 255, 255, 0.45);
+        --glass-border: rgba(255, 255, 255, 0.6);
+        --border-color: rgba(255, 255, 255, 0.4);
         /* 播放渠道颜色 */
-        --source-applemusic: #e74c3c; /* 红色 */
-        --source-audirvana: #9b59b6; /* 紫色 */
-        --source-roon: #7f8c8d; /* 灰色 */
+        --source-applemusic: #e74c3c;
+        --source-audirvana: #9b59b6;
+        --source-roon: #7f8c8d;
       }
 
-      /* 夜间模式 */
+      /* AI Insight Tabs */
+      .insight-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 15px;
+        overflow-x: auto;
+        gap: 10px;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background-color: var(--background-color);
+        padding-top: 20px; /* Match container padding */
+        margin-top: -20px; /* Pull up to cover padding */
+      }
+      .insight-tab {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+      }
+      .insight-tab.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        font-weight: 600;
+        background-color: rgba(52, 152, 219, 0.05);
+      }
+      .insight-tab:hover {
+        color: var(--primary-color);
+        background-color: rgba(52, 152, 219, 0.05);
+      }
+
+      /* AI 模型选择器样式 */
+      .ai-model-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 15px;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 5px 10px;
+      }
+      .ai-model-selector label {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .ai-model-selector select {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        outline: none;
+        cursor: pointer;
+        padding: 2px 0;
+      }
+      .dark-mode .ai-model-selector select option {
+        background-color: var(--card-bg);
+      }
+
       .dark-mode {
-        --primary-color: #5dade2;
-        --secondary-color: #58d68d;
-        --background-color: #1a1a1a;
-        --accent-color: #ec7063;
-        --text-primary: #f0f0f0;
-        --text-secondary: #bdc3c7;
-        --card-bg: #2c2c2c;
-        --border-color: #444444;
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --primary-color: #8da2fb;
+        --secondary-color: #a37ee1;
+        --background-color: #0f1114;
+        --accent-color: #ff6b6b;
+        --text-primary: #e2e8f0;
+        --text-secondary: #94a3b8;
+        --card-bg: rgba(20, 22, 28, 0.35);
+        --glass-border: rgba(255, 255, 255, 0.12); /* 暗色毛玻璃边缘 */
+        --border-color: rgba(45, 55, 72, 0.4);
         /* 播放渠道颜色 */
-        --source-applemusic: #ec7063; /* 红色 */
-        --source-audirvana: #bb8fce; /* 紫色 */
-        --source-roon: #bdc3c7; /* 灰色 */
+        --source-applemusic: #ff6b6b;
+        --source-audirvana: #c084fc;
+        --source-roon: #94a3b8;
+      }
+
+      /* Watermark Logo */
+      .watermark {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        width: 150px;
+        height: 50px;
+        background-image: url('../static/logo_all.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: left bottom;
+        opacity: 0.15;
+        z-index: 9999;
+        pointer-events: none;
+        transition: background-image 0.3s ease;
+      }
+
+      .dark-mode .watermark {
+        background-image: url('../static/logo_all_black.svg');
+        opacity: 0.15;
+      }
+
+      /* 全局毛玻璃组件统一样式 */
+      .navbar, .stat-card, .chart-card, .ranking-card, #nowPlaying, .ai-model-selector, .modal-content, #lyricsFloating, .insight-tabs, #recentTracksModal {
+        backdrop-filter: blur(24px) saturate(150%);
+        -webkit-backdrop-filter: blur(24px) saturate(150%);
+        background-color: var(--card-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
       }
 
       * {
@@ -45,11 +147,78 @@
       }
 
       body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background-color: var(--background-color);
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        background-color: transparent;
         color: var(--text-primary);
         line-height: 1.6;
+        min-height: 100vh;
       }
+
+      /* 高级动态流光背景 (Ambient Aurora Glassmorphism) */
+      .ambient-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        overflow: hidden;
+        pointer-events: none;
+        background-color: var(--background-color);
+        transition: background-color 0.3s ease;
+      }
+      
+      .color-orb {
+        position: absolute;
+        filter: blur(120px);
+        opacity: 0.6;
+        border-radius: 50%;
+        animation: float-orb 20s infinite ease-in-out alternate;
+        transform: translateZ(0); /* 开启 GPU 硬件加速 */
+        will-change: transform;
+      }
+      
+      .orb-1 {
+        width: 70vw;
+        height: 70vw;
+        background: rgba(102, 126, 234, 0.35); /* 蓝 */
+        top: -20vh;
+        left: -10vw;
+        animation-delay: 0s;
+        animation-duration: 25s;
+      }
+      
+      .orb-2 {
+        width: 60vw;
+        height: 60vw;
+        background: rgba(118, 75, 162, 0.3); /* 紫 */
+        bottom: -20vh;
+        right: -10vw;
+        animation-delay: -5s;
+        animation-duration: 30s;
+      }
+      
+      .orb-3 {
+        width: 50vw;
+        height: 50vw;
+        background: rgba(142, 162, 250, 0.25); /* 浅紫/高亮 */
+        top: 30vh;
+        left: 40vw;
+        animation-delay: -10s;
+        animation-duration: 35s;
+      }
+      
+      .dark-mode .orb-1 { background: rgba(102, 126, 234, 0.18); }
+      .dark-mode .orb-2 { background: rgba(118, 75, 162, 0.15); }
+      .dark-mode .orb-3 { background: rgba(82, 102, 200, 0.12); }
+
+      @keyframes float-orb {
+        0% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(6vw, 8vh) scale(1.1); }
+        66% { transform: translate(-8vw, 12vh) scale(0.9); }
+        100% { transform: translate(12vw, -6vh) scale(1.05); }
+      }
+
 
       .container {
         max-width: 1400px;
@@ -57,53 +226,142 @@
         padding: 20px;
       }
 
-      /* 顶部导航栏 */
+      /* 悬浮侧边栏导航 */
       .navbar {
-        background-color: var(--card-bg);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        padding: 15px 0;
-        margin-bottom: 30px;
-        border-radius: 10px;
+        position: fixed;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%) translateX(-90%);
+        height: auto;
+        padding: 20px 10px;
+        border-radius: 0 16px 16px 0;
+        z-index: 2000;
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 80px; /* 收起状态宽度，只露出一小截提示 */
+      }
+
+      /* Hover 时展开侧边栏 */
+      .navbar:hover {
+        transform: translateY(-50%) translateX(0);
+        width: 200px; /* 展开状态宽度 */
+        border-right: 1px solid var(--glass-border);
+      }
+
+      /* 透明遮罩，增加悬停触发面积 */
+      .navbar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: -20px;
+        width: 20px;
+        background: transparent;
       }
 
       .navbar-content {
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
+        justify-content: flex-start;
         align-items: center;
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 0 20px;
+        width: 100%;
+        height: 100%;
       }
 
       .logo {
-        font-size: 1.8rem;
+        font-size: 1.2rem;
         font-weight: 700;
         color: var(--primary-color);
         text-decoration: none;
+        margin-bottom: 30px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+      }
+      
+      .logo-icon {
+        font-size: 1.8rem;
+      }
+
+      .logo-text {
+        opacity: 0;
+        font-size: 1rem;
+        transition: opacity 0.3s ease;
+        display: none; /* 默认隐藏文字 */
+      }
+
+      .navbar:hover .logo-text {
+        opacity: 1;
+        display: block; /* 展开显示文字 */
       }
 
       .nav-links {
         display: flex;
+        flex-direction: column;
         list-style: none;
+        width: 100%;
+        gap: 15px;
       }
 
       .nav-links li {
-        margin-left: 25px;
+        margin-left: 0;
+        width: 100%;
       }
 
       .nav-links a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         text-decoration: none;
         color: var(--text-primary);
         font-weight: 500;
-        padding: 8px 15px;
-        border-radius: 5px;
+        padding: 12px 10px;
+        border-radius: 8px;
         transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .nav-text {
+        margin-left: 10px;
+        opacity: 0;
+        white-space: nowrap;
+        transform: translateX(-10px);
+        transition: all 0.3s ease;
+        display: none;
+      }
+
+      .navbar:hover .nav-links a {
+        justify-content: flex-start;
+        padding-left: 20px;
+      }
+
+      .navbar:hover .nav-text {
+        opacity: 1;
+        transform: translateX(0);
+        display: inline-block;
       }
 
       .nav-links a:hover,
       .nav-links a.active {
+        background-color: rgba(102, 126, 234, 0.15); /* 使用更温和的背景 */
+        color: var(--primary-color);
+      }
+      
+      .nav-links a.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 20%;
+        height: 60%;
+        width: 4px;
         background-color: var(--primary-color);
-        color: white;
+        border-radius: 0 4px 4px 0;
       }
 
       /* 统计卡片 */
@@ -189,21 +447,74 @@
         color: var(--accent-color);
       }
 
-      /* 加载和错误状态 */
-      .loading,
-      .error {
-        text-align: center;
-        padding: 20px;
-      }
-
-      .loading {
+      /* AI 加载动画样式 */
+      .ai-loading-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
         color: var(--text-secondary);
       }
-
-      .error {
-        color: var(--accent-color);
-        background-color: rgba(231, 76, 60, 0.1);
-        border-radius: 8px;
+      .ai-ripple {
+        display: inline-block;
+        position: relative;
+        width: 80px;
+        height: 80px;
+        margin-bottom: 20px;
+      }
+      .ai-ripple div {
+        position: absolute;
+        border: 4px solid var(--primary-color);
+        opacity: 1;
+        border-radius: 50%;
+        animation: ai-ripple 1.5s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+      }
+      .ai-ripple div:nth-child(2) {
+        animation-delay: -0.5s;
+      }
+      @keyframes ai-ripple {
+        0% {
+          top: 36px;
+          left: 36px;
+          width: 0;
+          height: 0;
+          opacity: 0;
+        }
+        4.9% {
+          top: 36px;
+          left: 36px;
+          width: 0;
+          height: 0;
+          opacity: 0;
+        }
+        5% {
+          top: 36px;
+          left: 36px;
+          width: 0;
+          height: 0;
+          opacity: 1;
+        }
+        100% {
+          top: 0px;
+          left: 0px;
+          width: 72px;
+          height: 72px;
+          opacity: 0;
+        }
+      }
+      .ai-loading-text {
+        font-size: 1rem;
+        font-weight: 500;
+        letter-spacing: 1px;
+        background: linear-gradient(90deg, var(--text-secondary), var(--primary-color), var(--text-secondary));
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shine 3s linear infinite;
+      }
+      @keyframes shine {
+        to { background-position: 200% center; }
       }
 
       /* 图表区域 */
@@ -330,6 +641,7 @@
       .rank-number {
         width: 36px;
         height: 36px;
+        flex-shrink: 0;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -357,20 +669,30 @@
 
       .track-info {
         flex: 1;
+        min-width: 0; /* Ensures flex child can shrink below its minimum content size */
+        margin-right: 15px;
       }
 
       .track-title {
         font-weight: 500;
-        /* margin-bottom: 3px; */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .track-artist {
         font-size: 0.8rem;
         color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .track-album {
         font-size: 0.8rem;
         color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .play-count {
@@ -389,6 +711,8 @@
         align-self: flex-end;
         display: inline-block;
         width: auto;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
 
       .source-applemusic {
@@ -406,6 +730,43 @@
         background-color: rgba(127, 140, 141, 0.1);
       }
 
+      /* 模块及弹窗轨迹背景 */
+      .stat-card, .chart-card, .ranking-card, .modal-content, #nowPlaying, #lyricsFloating {
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .stat-card *:not(.module-trail), .chart-card *:not(.module-trail), .ranking-card *:not(.module-trail), 
+      .modal-content *:not(.module-trail), #nowPlaying *:not(.module-trail), #lyricsFloating *:not(.module-trail) {
+        position: relative;
+        z-index: 1;
+      }
+
+      .module-trail {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.12;
+        /* 蓝紫渐变风格的轨迹纹理 */
+        background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23667eea;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23764ba2;stop-opacity:1' /%3E%3C/linearGradient%3E%3Cpath id='trail1' d='M-100,50 Q150,150 400,50 T900,150' /%3E%3C/defs%3E%3Cuse href='%23trail1' fill='none' stroke='url(%23grad)' stroke-width='1.5' stroke-dasharray='12,12' opacity='0.5' /%3E%3Ctext font-size='11' fill='url(%23grad)' opacity='0.3'%3E%3CtextPath href='%23trail1' startOffset='25%25'%3E轨迹 轨迹%3C/textPath%3E%3C/text%3E%3C/svg%3E");
+        background-size: cover;
+      }
+
+      .dark-mode .module-trail {
+        opacity: 0.2;
+        filter: saturate(1.2) brightness(1.2);
+      }
+      
+      .stat-card:hover, .chart-card:hover, .ranking-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.12);
+        transform: translateY(-2px);
+      }
+
       /* 响应式设计 */
       @media (max-width: 1200px) {
         .charts-container {
@@ -414,19 +775,74 @@
       }
 
       @media (max-width: 768px) {
-        .navbar-content {
-          flex-direction: column;
+        /* 在手机端恢复底部导航或顶部导航，侧滑体验在手机上较差 */
+        .navbar {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          top: auto;
+          transform: none;
+          width: 100%;
+          height: auto;
+          flex-direction: row;
+          border-radius: 16px 16px 0 0;
           padding: 10px;
+          border-right: none;
+          border-top: 1px solid var(--glass-border);
+        }
+
+        .navbar:hover {
+          transform: none;
+          width: 100%;
+        }
+
+        .navbar-content {
+          flex-direction: row;
+          justify-content: space-around;
+        }
+
+        .logo {
+          display: none; /* 手机端导航底栏隐藏 Logo */
         }
 
         .nav-links {
-          margin-top: 15px;
-          flex-wrap: wrap;
-          justify-content: center;
+          flex-direction: row;
+          justify-content: space-around;
+          margin-top: 0;
+          gap: 0;
         }
 
         .nav-links li {
-          margin: 5px;
+          margin: 0;
+        }
+
+        .nav-links a {
+          flex-direction: column;
+          padding: 5px 10px;
+          border-radius: 8px;
+        }
+
+        .nav-text {
+          display: block;
+          opacity: 1;
+          transform: none;
+          font-size: 0.7rem;
+          margin-left: 0;
+          margin-top: 3px;
+        }
+        
+        .navbar:hover .nav-links a {
+          padding-left: 10px;
+          justify-content: center;
+        }
+
+        .nav-links a.active::before {
+          display: none;
+        }
+
+        /* 给容器加底边距，防止被底部导航遮挡 */
+        .container {
+          padding-bottom: 80px;
         }
 
         .stats-container {
@@ -592,16 +1008,63 @@
         min-height: 100px;
       }
 
-      /* 喜欢状态指示器容器 */
-      .favorite-indicators-container {
-        font-size: 0.5em;
-        margin-top: 10px;
-        text-align: right; /* 右对齐 */
+      /* 正在播放操作按钮区域 */
+      .now-playing-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border-color);
       }
 
-      .dark-mode .favorite-indicators-container {
-        font-size: 0.5em;
-        margin-top: 10px;
+      .action-btns-group {
+        display: flex;
+        gap: 6px;
+      }
+
+      .action-btn {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 15px;
+        padding: 3px 10px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .action-btn:hover {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .sse-toggle-compact {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+      }
+
+      .sse-toggle-compact input {
+        cursor: pointer;
+        width: 12px;
+        height: 12px;
+      }
+
+      /* 喜欢状态指示器容器 */
+      .favorite-indicators-container {
+        font-size: 0.75rem;
+        margin-top: 8px;
+        text-align: right;
+        color: var(--text-secondary);
       }
 
       /* 喜欢状态指示器 */
@@ -954,7 +1417,7 @@
       .modal {
         display: none;
         position: fixed;
-        z-index: 10000;
+        z-index: 2000;
         left: 0;
         top: 0;
         width: 100%;
@@ -994,6 +1457,83 @@
         color: var(--text-primary);
       }
 
+      /* AI 歌词解析专项样式 */
+      .insight-container {
+        line-height: 1.6;
+        color: var(--text-primary);
+      }
+
+      .insight-section {
+        margin-bottom: 24px;
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 16px;
+        border: 1px solid var(--border-color);
+      }
+
+      .insight-section h3 {
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .lyrics-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .lyrics-line {
+        padding: 8px;
+        border-radius: 6px;
+        transition: background-color 0.2s;
+      }
+
+      .lyrics-line:hover {
+        background-color: rgba(52, 152, 219, 0.05);
+      }
+
+      .lyrics-original {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        font-style: italic;
+      }
+
+      .lyrics-translated {
+        color: var(--primary-color);
+        font-weight: 500;
+        margin-top: 2px;
+      }
+
+      .analysis-text {
+        white-space: pre-wrap;
+        color: var(--text-primary);
+        word-break: break-word;
+      }
+
+      .section-item {
+        margin-bottom: 12px;
+        padding-left: 12px;
+        border-left: 3px solid var(--primary-color);
+      }
+
+      .section-name {
+        font-weight: 700;
+        color: var(--text-primary);
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .section-content {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+      }
+
       .close {
         color: var(--text-secondary);
         font-size: 28px;
@@ -1004,6 +1544,37 @@
       .close:hover,
       .close:focus {
         color: var(--text-primary);
+      }
+
+      /* Tab 样式 */
+      .modal-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--border-color);
+        background: rgba(0,0,0,0.02);
+        padding: 0 20px;
+      }
+
+      .modal-tab {
+        padding: 12px 20px;
+        cursor: pointer;
+        font-weight: 500;
+        color: var(--text-secondary);
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .modal-tab:hover {
+        color: var(--primary-color);
+        background: rgba(52, 152, 219, 0.05);
+      }
+
+      .modal-tab.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+        background: transparent;
       }
 
       .modal-body {
@@ -1018,11 +1589,178 @@
       .modal-body .track-info strong {
         color: var(--primary-color);
       }
+
+      /* 歌词悬浮窗 */
+      #lyricsFloating {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 380px;
+        max-height: 500px;
+        background-color: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        padding: 20px;
+        z-index: 999;
+        display: none;
+        animation: fadeIn 0.3s ease;
+        cursor: move;
+        user-select: none;
+      }
+
+      .dark-mode #lyricsFloating {
+        background-color: rgba(44, 44, 44, 0.85);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      /* 歌词窗口头部 */
+      .lyrics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: -20px -20px 15px -20px;
+        padding: 10px 15px;
+        border-bottom: 1px solid var(--border-color);
+        cursor: move;
+      }
+
+      .dark-mode .lyrics-header {
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .lyrics-header h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--text-primary);
+      }
+
+      .lyrics-controls {
+        display: flex;
+        gap: 8px;
+      }
+
+      .lyrics-close-btn {
+        background: none;
+        border: none;
+        font-size: 1.3rem;
+        color: #95a5a6;
+        cursor: pointer;
+        padding: 0 5px;
+        transition: color 0.2s ease;
+      }
+
+      .lyrics-close-btn:hover {
+        color: var(--accent-color);
+      }
+
+      .dark-mode .lyrics-close-btn {
+        color: #bdc3c7;
+      }
+
+      .dark-mode .lyrics-close-btn:hover {
+        color: var(--accent-color);
+      }
+
+      /* 歌词滚动容器 */
+      .lyrics-container {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 10px 5px;
+        line-height: 2;
+      }
+
+      .lyrics-container::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .lyrics-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 3px;
+      }
+
+      .lyrics-container::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+      }
+
+      .dark-mode .lyrics-container::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .dark-mode .lyrics-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      /* 歌词行样式 */
+      .lyrics-line {
+        padding: 8px 10px;
+        margin: 4px 0;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+      }
+
+      .lyrics-line.active {
+        background-color: rgba(52, 152, 219, 0.15);
+        color: var(--text-primary);
+        font-weight: 600;
+        transform: scale(1.02);
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+      }
+
+      .dark-mode .lyrics-line.active {
+        background-color: rgba(93, 173, 226, 0.25);
+        box-shadow: 0 2px 8px rgba(93, 173, 226, 0.3);
+      }
+
+      /* 普通文本歌词样式 */
+      .lyrics-text {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+        line-height: 1.8;
+      }
+
+      .dark-mode .lyrics-text {
+        color: var(--text-primary);
+      }
+
+      /* 拖动时的样式 */
+      #lyricsFloating.dragging {
+        opacity: 0.8;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+      }
+
+      .dark-mode #lyricsFloating.dragging {
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      }
+
+      /* 响应式设计 */
+      @media (max-width: 768px) {
+        #lyricsFloating {
+          width: 90%;
+          right: 5%;
+          bottom: 80px;
+          max-height: 400px;
+        }
+      }
     </style>
   </head>
   <body>
+    <!-- 动态氛围背景层：高级极光流光效果 -->
+    <div class="ambient-background">
+      <div class="color-orb orb-1"></div>
+      <div class="color-orb orb-2"></div>
+      <div class="color-orb orb-3"></div>
+    </div>
     <!-- 实时播放信息悬浮窗 -->
     <div id="nowPlaying">
+      <div class="module-trail"></div>
       <div class="now-playing-header">
         <h4>正在播放</h4>
         <div class="now-playing-controls">
@@ -1056,30 +1794,57 @@
         </div>
 
         <div class="track-source" id="trackSource"></div>
+        
+        <!-- 操作按钮区域 -->
+        <div class="now-playing-actions">
+          <div class="action-btns-group">
+            <button id="aiInsightButton" class="action-btn" onclick="handleAiInsightClick()">音眸</button>
+            <button id="lyricsButton" class="action-btn">歌词</button>
+          </div>
+        </div>
+
         <div class="favorite-indicators-container">
           <div class="favorite-indicators" id="favoriteIndicators"></div>
         </div>
       </div>
     </div>
 
-    <div class="container">
-      <!-- 顶部导航栏 -->
-      <nav class="navbar">
-        <div class="navbar-content">
-          <a href="/" class="logo">音乐统计系统</a>
-          <ul class="nav-links">
-            <li><a href="/" class="active">仪表板</a></li>
-            <li><a href="#" id="unscrobbledTab">未上报</a></li>
-            <li><a href="/recommendations">音乐推荐</a></li>
-            <li><a href="/report">分析报告</a></li>
-            <li><a href="/playCounts">播放统计</a></li>
-          </ul>
+    <!-- 歌词悬浮窗 -->
+    <div id="lyricsFloating">
+      <div class="module-trail"></div>
+      <div class="lyrics-header">
+        <h4>歌词</h4>
+        <div class="lyrics-controls">
+          <button class="lyrics-close-btn" id="lyricsCloseBtn">×</button>
         </div>
-      </nav>
+      </div>
+      <div class="lyrics-container" id="lyricsContainer">
+        <div class="lyrics-text">暂无歌词数据</div>
+      </div>
+    </div>
 
+    <!-- 悬浮侧边导航栏 -->
+    <nav class="navbar">
+      <div class="navbar-content">
+        <a href="#" class="logo">
+          <span class="logo-icon">🎵</span>
+          <span class="logo-text">音眸轨迹</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="/" class="active" title="仪表板"><span class="nav-text">仪表板</span></a></li>
+          <li><a href="#" id="unscrobbledTab" title="未上报"><span class="nav-text">未上报</span></a></li>
+          <li><a href="/recommendations" title="音乐推荐"><span class="nav-text">音乐推荐</span></a></li>
+          <li><a href="/report" title="分析报告"><span class="nav-text">分析报告</span></a></li>
+          <li><a href="/playCounts" title="播放统计"><span class="nav-text">播放统计</span></a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container">
       <!-- 统计卡片 -->
       <div class="stats-container">
         <div class="stat-card">
+          <div class="module-trail"></div>
           <div class="stat-header">
             <div class="stat-title">总播放次数</div>
             <div class="stat-icon icon-1">▶️</div>
@@ -1089,6 +1854,7 @@
         </div>
 
         <div class="stat-card">
+          <div class="module-trail"></div>
           <div class="stat-header">
             <div class="stat-title">曲目总数</div>
             <div class="stat-icon icon-2">🎵</div>
@@ -1098,6 +1864,7 @@
         </div>
 
         <div class="stat-card">
+          <div class="module-trail"></div>
           <div class="stat-header">
             <div class="stat-title">艺术家数量</div>
             <div class="stat-icon icon-3">🎤</div>
@@ -1107,6 +1874,7 @@
         </div>
 
         <div class="stat-card">
+          <div class="module-trail"></div>
           <div class="stat-header">
             <div class="stat-title">专辑数量</div>
             <div class="stat-icon icon-4">💿</div>
@@ -1117,6 +1885,7 @@
 
         <!-- 播放来源统计卡片 -->
         <div class="stat-card">
+          <div class="module-trail"></div>
           <div class="stat-header">
             <div class="stat-title">播放来源分布</div>
             <div class="stat-icon icon-1">📊</div>
@@ -1134,6 +1903,7 @@
       <div class="charts-container">
         <!-- 热门艺术家 -->
         <div class="chart-card">
+          <div class="module-trail"></div>
           <div class="card-header">
             <div class="card-title">热门艺术家</div>
             <div class="time-filters">
@@ -1148,6 +1918,7 @@
 
         <!-- 热门专辑 -->
         <div class="chart-card">
+          <div class="module-trail"></div>
           <div class="card-header">
             <div class="card-title">热门专辑</div>
             <div class="time-filters">
@@ -1164,6 +1935,7 @@
 
         <!-- 热门流派 -->
         <div class="chart-card">
+          <div class="module-trail"></div>
           <div class="card-header">
             <div class="card-title">口味流派</div>
             <button id="genreChartFullscreenBtn" class="fullscreen-btn">
@@ -1177,6 +1949,7 @@
 
         <!-- 播放趋势图 -->
         <div class="chart-card">
+          <div class="module-trail"></div>
           <!-- <div class="chart-card" style="grid-column: span 2"> -->
           <div class="card-header">
             <div class="card-title">播放趋势</div>
@@ -1201,6 +1974,7 @@
       <div class="rankings-container">
         <!-- 最近播放 -->
         <div class="ranking-card" id="recentPlaysCard">
+          <div class="module-trail"></div>
           <div class="card-header">
             <div class="card-title">最近播放</div>
           </div>
@@ -1212,6 +1986,7 @@
 
         <!-- 播放排行榜 -->
         <div class="ranking-card" id="rankingCard">
+          <div class="module-trail"></div>
           <div class="card-header">
             <div class="card-title">播放排行榜</div>
             <div class="time-filters">
@@ -1230,6 +2005,7 @@
       <!-- 未上报记录容器 -->
       <div id="unscrobbledContainer" style="display: none">
         <div class="chart-card">
+          <div class="module-trail"></div>
           <div class="card-header">
             <div class="card-title">未上报记录</div>
             <div>
@@ -1444,6 +2220,8 @@
       let currentPosition = 0; // 当前播放位置
       let trackDuration = 0; // 歌曲总时长
       let progressInterval = null; // 进度更新定时器
+      let currentTrackInsight = null; // 当前曲目的 AI 解析结果
+      let lastTrackKey = ""; // 用于检测切歌
 
       // 格式化时间（秒转为mm:ss）
       function formatTime(seconds) {
@@ -1483,6 +2261,11 @@
 
       // 更新正在播放的信息
       function updateNowPlaying(source, data) {
+        // 检测是否切歌
+        const newTrackKey = `${data.artist}-${data.title}`;
+        const trackChanged = newTrackKey !== lastTrackKey;
+        lastTrackKey = newTrackKey;
+
         // 保存当前播放信息
         currentTrackInfo = data;
         currentSource = source;
@@ -1507,6 +2290,14 @@
 
         // 显示悬浮窗
         document.getElementById("nowPlaying").style.display = "block";
+
+        // 如果歌曲改变了，且歌词窗口是打开的，则更新歌词
+        if (trackChanged) {
+          const lyricsFloating = document.getElementById("lyricsFloating");
+          if (lyricsFloating && lyricsFloating.style.display === "block") {
+            showLyrics();
+          }
+        }
 
         // 根据来源更新信息
         let sourceClass = "";
@@ -1593,6 +2384,681 @@
           favoriteButton.className = "favorite-button unliked";
           favoriteButton.title = "添加到喜欢";
         }
+      }
+
+      let pendingAnalysisTrack = null; // 暂存待分析的曲目信息（用于处理详情页分析）
+
+      // --- AI 解析交互逻辑重构 ---
+
+      // 1. 处理正在播放面板的“AI 分析”点击
+      async function handleAiInsightClick() {
+        // 不再通过 textContent 区分，始终尝试 fetchTrackInsight(false) 即查询模式
+        fetchTrackInsight(false);
+      }
+
+      // 2. 显示模型选择弹窗
+      function showModelPicker(targetTrack = null) {
+        // 如果传入了 targetTrack（比如从详情页传来），则暂存它
+        pendingAnalysisTrack = targetTrack || currentTrackInfo;
+        showModal("aiModelPickerModal");
+      }
+
+      // 3. 用户选择模型后点击“开始分析”
+      function startAnalysisWithSelectedModel() {
+        hideModal("aiModelPickerModal");
+        // 使用暂存的曲目信息开启强制分析流
+        fetchTrackInsight(true, pendingAnalysisTrack);
+      }
+
+      // 4. 发送对 AI 歌词解析的点赞 / 点踩反馈
+      function recordAiFeedback(score) {
+        console.log("recordAiFeedback called with score:", score, "currentTrackInsight:", currentTrackInsight);
+        if (!currentTrackInsight) {
+          alert("暂无分析结果");
+          return;
+        }
+        
+        const insightId = currentTrackInsight.id || currentTrackInsight.ID;
+        if (!insightId) {
+          console.warn("Insight object missing ID property:", currentTrackInsight);
+          alert("未找到解析 ID，无法提交反馈");
+          return;
+        }
+        
+        let comment = "";
+        if (score === -1) {
+          console.log("Triggering prompt for dislike comment");
+          comment = prompt("我们很抱歉这次分析没能让你满意，请提供你的改进建议，以便我们优化：");
+          console.log("User comment prompt result:", comment);
+          if (comment === null) return; // 用户取消了输入
+        }
+        
+        fetch(`/api/track-insight/${insightId}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ score: score, comment: comment }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if(data.status === "ok") {
+              alert(score === 1 ? "感谢你的点赞！" : "感谢反馈，我们会持续改进。");
+            } else {
+              console.error("反馈失败:", data);
+              alert("反馈失败: " + (data.error || "未知错误"));
+            }
+        })
+        .catch(error => {
+          console.error("发送反馈失败:", error);
+          alert("发送反馈失败: " + error.message);
+        });
+      }
+
+      async function shareInsight() {
+        if (!currentTrackInsight) {
+          alert("暂无分析结果可分享");
+          return;
+        }
+
+        const trackInfo = currentTrackInfo || pendingAnalysisTrack;
+        if (!trackInfo) {
+          alert("无法获取曲目信息");
+          return;
+        }
+
+        const shareBtn = document.getElementById("aiShareBtn");
+        const originalText = shareBtn.textContent;
+        shareBtn.textContent = "生成中...";
+        shareBtn.disabled = true;
+
+        try {
+          const container = document.getElementById("shareInsightContainer");
+          const titleEl = document.getElementById("shareTrackTitle");
+          const metaEl = document.getElementById("shareTrackMeta");
+          const contentEl = document.getElementById("shareInsightContent");
+          const modelEl = document.getElementById("shareModelName");
+
+          titleEl.textContent = trackInfo.title || trackInfo.track || "未知曲目";
+          metaEl.textContent = `${trackInfo.artist || "未知艺术家"} · ${trackInfo.album || "未知专辑"}`;
+          
+          const modelName = currentTrackInsight.llm_provider || "AI";
+          modelEl.textContent = modelName.charAt(0).toUpperCase() + modelName.slice(1);
+
+          contentEl.innerHTML = generateShareInsightHtml(currentTrackInsight);
+
+          container.style.position = "fixed";
+          container.style.left = "0";
+          container.style.top = "0";
+          container.style.zIndex = "-1";
+
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          const canvas = await html2canvas(container, {
+            scale: 3,
+            useCORS: true,
+            backgroundColor: null,
+            logging: false
+          });
+
+          container.style.position = "absolute";
+          container.style.left = "-9999px";
+          container.style.top = "-9999px";
+
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              alert("生成图片失败");
+              return;
+            }
+            try {
+              await navigator.clipboard.write([
+                new ClipboardItem({ "image/png": blob })
+              ]);
+              alert("图片已复制到剪贴板！");
+            } catch (err) {
+              console.error("复制失败:", err);
+              const link = document.createElement("a");
+              link.download = `insight-${trackInfo.artist}-${trackInfo.title}.png`;
+              link.href = URL.createObjectURL(blob);
+              link.click();
+              URL.revokeObjectURL(link.href);
+            }
+          }, "image/png");
+
+        } catch (error) {
+          console.error("分享失败:", error);
+          alert("生成分享图片失败: " + error.message);
+        } finally {
+          shareBtn.textContent = originalText;
+          shareBtn.disabled = false;
+        }
+      }
+
+      let detailInsights = [];
+      async function shareDetailInsight(index) {
+        if (!window.currentDetailData || !window.currentDetailData.track) {
+          alert("无法获取曲目信息");
+          return;
+        }
+        
+        const insights = window.currentDetailData.insights || [];
+        const insight = insights[index];
+        if (!insight) {
+          alert("暂无分析结果可分享");
+          return;
+        }
+
+        const track = window.currentDetailData.track;
+        const trackInfo = {
+          artist: track.artist,
+          album: track.album,
+          title: track.track
+        };
+
+        try {
+          const container = document.getElementById("shareInsightContainer");
+          const titleEl = document.getElementById("shareTrackTitle");
+          const metaEl = document.getElementById("shareTrackMeta");
+          const contentEl = document.getElementById("shareInsightContent");
+          const modelEl = document.getElementById("shareModelName");
+
+          titleEl.textContent = trackInfo.title || "未知曲目";
+          metaEl.textContent = `${trackInfo.artist || "未知艺术家"} · ${trackInfo.album || "未知专辑"}`;
+          
+          const modelName = insight.llm_provider || "AI";
+          modelEl.textContent = modelName.charAt(0).toUpperCase() + modelName.slice(1);
+
+          contentEl.innerHTML = generateShareInsightHtml(insight);
+
+          container.style.position = "fixed";
+          container.style.left = "0";
+          container.style.top = "0";
+          container.style.zIndex = "-1";
+
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          const canvas = await html2canvas(container, {
+            scale: 3,
+            useCORS: true,
+            backgroundColor: null,
+            logging: false
+          });
+
+          container.style.position = "absolute";
+          container.style.left = "-9999px";
+          container.style.top = "-9999px";
+
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              alert("生成图片失败");
+              return;
+            }
+            try {
+              await navigator.clipboard.write([
+                new ClipboardItem({ "image/png": blob })
+              ]);
+              alert("图片已复制到剪贴板！");
+            } catch (err) {
+              console.error("复制失败:", err);
+              const link = document.createElement("a");
+              link.download = `insight-${trackInfo.artist}-${trackInfo.title}.png`;
+              link.href = URL.createObjectURL(blob);
+              link.click();
+              URL.revokeObjectURL(link.href);
+            }
+          }, "image/png");
+
+        } catch (error) {
+          console.error("分享失败:", error);
+          alert("生成分享图片失败: " + error.message);
+        }
+      }
+
+      function generateShareInsightHtml(insight) {
+        let html = '';
+
+        if (insight.lyrics_translation) {
+          const lines = insight.lyrics_translation.replace(/\\n/g, '\n').split('\n').filter(l => l.trim() !== '');
+          if (lines.length > 0) {
+            html += `<div style="margin-bottom: 20px;">
+              <h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0; opacity: 0.9;">📝 歌词翻译</h3>
+              <div style="font-size: 12px; line-height: 1.8;">`;
+            for (let i = 0; i < lines.length; i += 2) {
+              const original = lines[i] || "";
+              const translated = lines[i+1] || "";
+              html += `<div style="margin-bottom: 8px;">
+                <div style="opacity: 0.7; font-style: italic;">${original}</div>
+                ${translated ? `<div style="font-weight: 500;">${translated}</div>` : ''}
+              </div>`;
+            }
+            html += `</div></div>`;
+          }
+        }
+
+        if (insight.analysis_summary) {
+          const summary = insight.analysis_summary.replace(/\\n/g, '\n');
+          html += `<div style="margin-bottom: 20px;">
+            <h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0; opacity: 0.9;">💡 曲目解读</h3>
+            <div style="font-size: 12px; line-height: 1.8; white-space: pre-wrap;">${summary}</div>
+          </div>`;
+        }
+
+        try {
+          let sections = insight.analysis_by_section;
+          if (typeof sections === 'string' && sections.trim() !== '') {
+            try { sections = JSON.parse(sections); } catch (e) { sections = null; }
+          }
+          if (sections && Object.keys(sections).length > 0) {
+            const sectionTitles = {
+              "literary_analysis": "文学解读",
+              "musical_analysis": "乐评分析",
+              "cultural_context": "文化背景",
+              "translation_notes": "翻译说明",
+              "appreciate_analysis": "分句赏析"
+            };
+            html += `<div style="margin-bottom: 16px;">
+              <h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0; opacity: 0.9;">🧩 深度解析</h3>`;
+            Object.entries(sections).forEach(([section, content]) => {
+              const title = sectionTitles[section] || section;
+              const contentStr = typeof content === 'string' ? content.replace(/\\n/g, '\n') : JSON.stringify(content);
+              html += `<div style="margin-bottom: 12px; padding-left: 10px; border-left: 2px solid rgba(255,255,255,0.4);">
+                <h4 style="font-size: 12px; font-weight: 600; margin: 0 0 6px 0;">${title}</h4>
+                <div style="font-size: 11px; line-height: 1.7; white-space: pre-wrap; opacity: 0.9;">${contentStr}</div>
+              </div>`;
+            });
+            html += `</div>`;
+          }
+        } catch (err) {
+          console.error("渲染分段解析时出错:", err);
+        }
+
+        if (insight.background_info && insight.background_info.length > 5) {
+          html += `<div style="margin-bottom: 20px;">
+            <h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0; opacity: 0.9;">🎨 创作背景</h3>
+            <div style="font-size: 12px; line-height: 1.8;">${insight.background_info}</div>
+          </div>`;
+        }
+
+        if (insight.era_context) {
+          html += `<div style="margin-bottom: 16px;">
+            <h3 style="font-size: 13px; font-weight: 600; margin: 0 0 10px 0; opacity: 0.9;">🌍 时代语境</h3>
+            <div style="font-size: 12px; line-height: 1.8;">${insight.era_context}</div>
+          </div>`;
+        }
+
+        if (!html) {
+          html = `<div style="text-align: center; opacity: 0.7; padding: 30px;">
+            <div style="font-size: 32px; margin-bottom: 10px;">🎵</div>
+            <div style="font-size: 13px;">暂无详细分析内容</div>
+          </div>`;
+        }
+
+        return html;
+      }
+
+      function getRandomLoadingHtml() {
+        const texts = [
+          "正在为您捕捉旋律中的灵魂...",
+          "正在为您解读词句间的深意...",
+          "正在为您连接音乐与情感的彼岸...",
+          "正在为您寻觅旋律背后的故事...",
+          "正在为您雕琢每一句诗词意境..."
+        ];
+        const text = "音眸" + texts[Math.floor(Math.random() * texts.length)];
+        return `
+          <div class="ai-loading-wrapper">
+            <div class="ai-ripple"><div></div><div></div></div>
+            <div class="ai-loading-text">${text}</div>
+          </div>
+        `;
+      }
+
+      // 5. 核心分析驱动函数
+      async function fetchTrackInsight(force = false, targetTrack = null) {
+        // 这里的逻辑：传入了 targetTrack 就用传入的，否则用全局 currentTrackInfo
+        const trackInfo = targetTrack || currentTrackInfo;
+        if (!trackInfo) {
+          alert("无法获取曲目元数据，请确保页面已加载曲目信息");
+          return;
+        }
+
+        const aiButton = document.getElementById("aiInsightButton");
+        const sseEnabled = document.getElementById("aiModelSseToggle").checked;
+        const streamContent = document.getElementById("aiInsightStreamContent");
+        const actionFooter = document.getElementById("aiActionFooter");
+        const reanalyzeBtn = document.getElementById("aiReanalyzeBtn");
+
+        // 基础参数
+        const artist = trackInfo.artist;
+        const album = trackInfo.album;
+        const track = trackInfo.title || trackInfo.track;
+
+        // 如果是强制分析，必须有已选模型
+        let modelType = "";
+        if (force) {
+          modelType = document.getElementById('aiModelSelect').value;
+          // aiButton 禁用但文字不改
+          aiButton.disabled = true;
+          streamContent.innerHTML = getRandomLoadingHtml();
+          actionFooter.style.display = "none";
+          showModal("aiInsightModal");
+        } else {
+          // 仅查询模式
+          aiButton.disabled = true;
+        }
+
+        if (force && sseEnabled) {
+          // --- SSE 流式模式 ---
+          const url = `/api/track-insight-stream?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&track=${encodeURIComponent(track)}&force=true&modelType=${encodeURIComponent(modelType)}`;
+          const eventSource = new EventSource(url);
+          let fullText = "";
+
+          eventSource.onmessage = function(event) {
+            if (streamContent.querySelector(".ai-loading-wrapper")) streamContent.innerHTML = "";
+            fullText += event.data;
+            streamContent.textContent = fullText;
+            streamContent.scrollTop = streamContent.scrollHeight;
+          };
+
+          eventSource.onerror = function(err) {
+            eventSource.close();
+            aiButton.disabled = false;
+            if (fullText.length > 0) {
+              // 分析完成，执行非强制查询以刷新结果展示排版
+              fetchTrackInsight(false, trackInfo); 
+            } else {
+              // 分析失败，保持文案为 AI 分析，但更新模态框内部按钮文字
+              streamContent.innerHTML = '<div class="error">对话意外中断或该模型暂不支持流式返回。</div>';
+              actionFooter.style.display = "flex";
+              reanalyzeBtn.textContent = "开始分析";
+            }
+          };
+        } else if (force) {
+          // --- 强制执行分析模式 (POST) ---
+          try {
+            const body = { artist, album, track, modelType };
+            const response = await fetch("/api/track-insight", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body)
+            });
+            aiButton.disabled = false;
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "分析失败");
+            
+            const insights = data.insights || (data.insight ? [data.insight] : []);
+            handleInsightResponse(insights, true);
+          } catch (err) {
+            handleInsightError(err, true);
+          }
+        } else {
+          // --- 纯查询模式 (GET) ---
+          try {
+            const url = `/api/track-insight?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&track=${encodeURIComponent(track)}`;
+            const response = await fetch(url);
+            aiButton.disabled = false;
+            const data = await response.json();
+            
+            const insights = data.insights || [];
+            if (insights.length > 0) {
+              handleInsightResponse(insights, false);
+            } else {
+              handleNoInsight();
+            }
+          } catch (err) {
+            handleInsightError(err, false);
+          }
+        }
+      }
+
+      // 辅助：处理解析成功响应
+      function handleInsightResponse(insights, isFromForce) {
+        const aiButton = document.getElementById("aiInsightButton");
+        const streamContent = document.getElementById("aiInsightStreamContent");
+        const actionFooter = document.getElementById("aiActionFooter");
+        const reanalyzeBtn = document.getElementById("aiReanalyzeBtn");
+
+        currentTrackInsight = insights[0];
+        // aiButton 不再改变文字，保持“AI 分析”
+        renderInsight(insights);
+        actionFooter.style.display = "flex";
+        reanalyzeBtn.textContent = "重新分析";
+        if(!isFromForce) showModal("aiInsightModal");
+      }
+
+      // 辅助：处理无解析数据
+      function handleNoInsight() {
+        const aiButton = document.getElementById("aiInsightButton");
+        const streamContent = document.getElementById("aiInsightStreamContent");
+        const actionFooter = document.getElementById("aiActionFooter");
+        const reanalyzeBtn = document.getElementById("aiReanalyzeBtn");
+
+        // aiButton 不再改变文字，保持“AI 分析”
+        streamContent.innerHTML = '<div class="loading">该曲目暂无分析数据，请点击下方按钮开始分析。</div>';
+        actionFooter.style.display = "flex";
+        reanalyzeBtn.textContent = "开始分析";
+        showModal("aiInsightModal");
+      }
+
+      // 辅助：处理错误
+      function handleInsightError(err, isFromForce) {
+        const aiButton = document.getElementById("aiInsightButton");
+        const streamContent = document.getElementById("aiInsightStreamContent");
+        const actionFooter = document.getElementById("aiActionFooter");
+
+        console.error("AI Insight Error:", err);
+        aiButton.disabled = false;
+        // aiButton 不再改变文字
+        streamContent.innerHTML = `<div class="error">${err.message}</div>`;
+        actionFooter.style.display = "flex";
+      }
+      // 6. 初始化 AI 模型
+      async function initAIModels() {
+        try {
+          const resp = await fetch("/api/ai-models");
+          const data = await resp.json();
+          const select = document.getElementById("aiModelSelect");
+          if (data.models && data.models.length > 0) {
+            select.innerHTML = "";
+            data.models.forEach(m => {
+              const opt = document.createElement("option");
+              opt.value = m;
+              opt.textContent = m.charAt(0).toUpperCase() + m.slice(1);
+              if (m === "ollama") opt.selected = true;
+              select.appendChild(opt);
+            });
+          }
+        } catch (e) { console.error("加载模型失败:", e); }
+      }
+      initAIModels();
+
+      let allInsights = [];
+
+      // 渲染结构化解析结果
+      function renderInsight(data) {
+        const streamContent = document.getElementById("aiInsightStreamContent");
+        if (!data) return;
+
+        // 标准化输入为数组
+        let insights = [];
+        if (Array.isArray(data)) {
+            insights = data;
+        } else if (data.insights && Array.isArray(data.insights)) {
+            insights = data.insights;
+        } else {
+            insights = [data];
+        }
+
+        if (insights.length === 0) {
+            streamContent.innerHTML = '<div class="error">暂无分析数据</div>';
+            return;
+        }
+
+        allInsights = insights;
+        currentTrackInsight = insights[0];
+
+        // 设置为正常布局
+        streamContent.style.whiteSpace = "normal";
+
+        let html = '';
+        
+        // 如果有多个结果，显示 Tab
+        if (insights.length > 1) {
+             const positiveTotal = insights.reduce((sum, i) => sum + Math.max(0, i.total_score || 0), 0);
+             html += '<div class="insight-tabs">';
+             insights.forEach((insight, index) => {
+                 const date = new Date(insight.created_at || Date.now());
+                 const timeStr = date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                 const activeClass = index === 0 ? 'active' : '';
+                 const totalScore = insight.total_score || 0;
+                 let supportRate;
+                 if (positiveTotal > 0) {
+                     supportRate = ((totalScore / positiveTotal) * 100).toFixed(1);
+                 } else {
+                     supportRate = totalScore === 0 ? '0.0' : (totalScore > 0 ? '100.0' : '-100.0');
+                 }
+                 html += `<div class="insight-tab ${activeClass}" onclick="switchInsightTab(${index})" title="总分: ${totalScore} | 支持率: ${supportRate}%">分析 ${insights.length - index} <small>(${timeStr})</small></div>`;
+             });
+             html += '</div>';
+        }
+
+        html += '<div id="insight-content-container">';
+        insights.forEach((insight, index) => {
+            const displayStyle = index === 0 ? 'block' : 'none';
+            html += `<div class="insight-item" id="insight-item-${index}" style="display: ${displayStyle};">`;
+            html += generateInsightContentHtml(insight);
+            html += '</div>';
+        });
+        html += '</div>';
+
+        streamContent.innerHTML = html;
+        streamContent.scrollTop = 0;
+      }
+
+      function switchInsightTab(index) {
+          console.log("switchInsightTab:", index);
+          const container = document.getElementById("aiInsightStreamContent");
+          container.querySelectorAll('.insight-tab').forEach((tab, i) => {
+              if (i === index) tab.classList.add('active');
+              else tab.classList.remove('active');
+          });
+          container.querySelectorAll('.insight-item').forEach((item, i) => {
+              if (i === index) item.style.display = 'block';
+              else item.style.display = 'none';
+          });
+          if (allInsights[index]) {
+              currentTrackInsight = allInsights[index];
+          }
+      }
+
+      function generateInsightContentHtml(insight) {
+        let html = '<div class="insight-container">';
+
+        // 1. 歌词翻译
+        const translation = insight.lyrics_translation || "";
+        const lines = translation.replace(/\\n/g, '\n').split('\n').filter(l => l.trim() !== '');
+
+        if (lines.length > 0) {
+          html += `
+            <div class="insight-section">
+              <h3><span>📝</span> 歌词翻译</h3>
+              <div class="lyrics-grid">
+                ${(() => {
+                  let lyricsHtml = '';
+                  for (let i = 0; i < lines.length; i += 2) {
+                    const original = lines[i] || "";
+                    const translated = lines[i+1] || "";
+                    lyricsHtml += `
+                      <div class="lyrics-line">
+                        <div class="lyrics-original">${original}</div>
+                        ${translated ? `<div class="lyrics-translated">${translated}</div>` : ''}
+                      </div>
+                    `;
+                  }
+                  return lyricsHtml;
+                })()}
+              </div>
+            </div>
+          `;
+        }
+
+        // 2. 曲目解读
+        if (insight.analysis_summary) {
+          html += `
+            <div class="insight-section">
+              <h3><span>💡</span> 曲目解读</h3>
+              <div class="analysis-text" style="white-space: pre-wrap; line-height: 1.8;">${insight.analysis_summary.replace(/\\n/g, '\n')}</div>
+            </div>
+          `;
+        }
+
+        // 3. 分段解析
+        try {
+          let sections = insight.analysis_by_section;
+          if (typeof sections === 'string' && sections.trim() !== '') {
+            try {
+              sections = JSON.parse(sections);
+            } catch (e) {
+              sections = null;
+            }
+          }
+
+          if (sections && Object.keys(sections).length > 0) {
+            html += `
+              <div class="insight-section">
+                <h3><span>🧩</span> 分段解析</h3>
+                <div class="analysis-sections">
+                  ${Object.entries(sections).map(([section, content]) => {
+                    const sectionTitles = {
+                      "literary_analysis": "文学翻译家的深度解读",
+                      "musical_analysis": "乐评人的专业评价",
+                      "cultural_context": "文化史学家的背景与时代分析",
+                      "cultural_context": "文化史学家的背景与时代分析",
+                      "translation_notes": "翻译难点说明或语言特色分析",
+                      "appreciate_analysis": "分句进行赏析和解读"
+                    };
+                    const title = sectionTitles[section] || section;
+                    const contentHtml = typeof content === 'string' ? content.replace(/\\n/g, '\n') : JSON.stringify(content);
+                    return `
+                      <div class="section-item">
+                        <h4>${title}</h4>
+                        <div class="section-content" style="white-space: pre-wrap; line-height: 1.8;">${contentHtml}</div>
+                      </div>
+                    `;
+}).join('')}
+                </div>
+              </div>
+            `;
+          }
+        } catch (err) {
+          console.error("渲染分段解析时出错:", err);
+        }
+
+        // 4. 创作背景
+        if (insight.background_info && insight.background_info.length > 5) {
+          html += `
+            <div class="insight-section">
+              <h3><span>🎨</span> 创作背景</h3>
+              <div class="analysis-text">${insight.background_info}</div>
+            </div>
+          `;
+        }
+
+        // 5. 时代语境
+        if (insight.era_context) {
+          html += `
+            <div class="insight-section">
+              <h3><span>🌍</span> 时代语境</h3>
+              <div class="analysis-text">${insight.era_context}</div>
+            </div>
+          `;
+        }
+
+        html += `
+            <div style="margin-top: 10px; font-size: 0.75rem; color: var(--text-secondary); text-align: right; opacity: 0.7;">
+              由 ${insight.llm_provider || 'AI'} 提供深度分析
+            </div>
+          </div>
+        `;
+        return html;
       }
 
       // 点赞按钮点击事件处理
@@ -1704,6 +3170,221 @@
         minimizeHandle.addEventListener("click", function () {
           nowPlaying.classList.toggle("minimized");
         });
+      }
+
+      // 获取 AI 歌词解析
+      async function showAiInsight(force = false, targetTrack = null) {
+        const aiButton = document.getElementById("aiInsightButton");
+        const streamContent = document.getElementById("aiInsightStreamContent");
+        const aiFeedbackContainer = document.getElementById("aiFeedbackContainer");
+        const reanalyzeButton = document.getElementById("reanalyzeInsightButton");
+        
+        const trackInfo = targetTrack || currentTrackInfo;
+
+        if (!trackInfo) {
+          alert("当前没有正在播放的曲目");
+          return;
+        }
+
+        // 清空现有内容并显示加载态
+        streamContent.innerHTML = getRandomLoadingHtml();
+        aiFeedbackContainer.style.display = "none";
+        aiButton.disabled = true;
+        if (reanalyzeButton) reanalyzeButton.disabled = true; // 禁用重新分析按钮
+
+        showModal("aiInsightModal");
+        await fetchTrackInsight(force, trackInfo);
+
+        aiButton.disabled = false;
+        if (reanalyzeButton) reanalyzeButton.disabled = false; // 重新启用重新分析按钮
+      }
+
+      // ========== 歌词功能 ==========
+      let currentLyricsData = null;
+      let lyricsUpdateInterval = null;
+
+      function parseLRC(lrcText) {
+        const lines = lrcText.split('\n');
+        const lrcData = [];
+        const timeRegex = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g;
+
+        lines.forEach(line => {
+          const matches = [...line.matchAll(timeRegex)];
+          if (matches.length > 0) {
+            const lastMatch = matches[matches.length - 1];
+            const minutes = parseInt(lastMatch[1]);
+            const seconds = parseInt(lastMatch[2]);
+            const milliseconds = lastMatch[3] ? parseInt(lastMatch[3].padEnd(3, '0')) : 0;
+            const time = minutes * 60 + seconds + milliseconds / 1000;
+            const text = line.replace(timeRegex, '').trim();
+            if (text) {
+              lrcData.push({ time, text });
+            }
+          }
+        });
+        lrcData.sort((a, b) => a.time - b.time);
+        return lrcData;
+      }
+
+      async function fetchLyrics(artist, album, track) {
+        try {
+          const params = new URLSearchParams({
+            artist: artist,
+            album: album || '',
+            track: track
+          });
+          const response = await fetch(`/api/track-lyrics?${params}`);
+          if (!response.ok) throw new Error('获取歌词失败');
+          return await response.json();
+        } catch (error) {
+          console.error('获取歌词失败:', error);
+          return { lyrics: '', has_lrc: false };
+        }
+      }
+
+      async function showLyrics() {
+        if (!currentTrackInfo) {
+          alert('当前没有正在播放的曲目');
+          return;
+        }
+        const lyricsFloating = document.getElementById('lyricsFloating');
+        const lyricsContainer = document.getElementById('lyricsContainer');
+        lyricsContainer.innerHTML = '<div class="lyrics-text">正在加载歌词...</div>';
+        lyricsFloating.style.display = 'block';
+
+        const lyricsData = await fetchLyrics(
+          currentTrackInfo.artist,
+          currentTrackInfo.album,
+          currentTrackInfo.title
+        );
+
+        if (!lyricsData.lyrics) {
+          lyricsContainer.innerHTML = '<div class="lyrics-text">暂无歌词数据</div>';
+          currentLyricsData = null;
+          return;
+        }
+
+        if (lyricsData.has_lrc) {
+          currentLyricsData = parseLRC(lyricsData.lyrics);
+          renderLRCLyrics(currentLyricsData);
+          startLyricsSync();
+        } else {
+          lyricsContainer.innerHTML = `<div class="lyrics-text">${lyricsData.lyrics}</div>`;
+          currentLyricsData = null;
+          stopLyricsSync();
+        }
+      }
+
+      function renderLRCLyrics(lrcData) {
+        const lyricsContainer = document.getElementById('lyricsContainer');
+        lyricsContainer.innerHTML = '';
+        lrcData.forEach((item, index) => {
+          const lineDiv = document.createElement('div');
+          lineDiv.className = 'lyrics-line';
+          lineDiv.textContent = item.text;
+          lineDiv.dataset.time = item.time;
+          lineDiv.dataset.index = index;
+          lyricsContainer.appendChild(lineDiv);
+        });
+      }
+
+      function startLyricsSync() {
+        stopLyricsSync();
+        lyricsUpdateInterval = setInterval(() => {
+          if (!currentLyricsData || !currentTrackInfo) return;
+          const currentTime = currentPosition || 0;
+          let activeIndex = -1;
+          for (let i = 0; i < currentLyricsData.length; i++) {
+            if (currentLyricsData[i].time <= currentTime) {
+              activeIndex = i;
+            } else {
+              break;
+            }
+          }
+          const lyricsLines = document.querySelectorAll('.lyrics-line');
+          lyricsLines.forEach((line, index) => {
+            if (index === activeIndex) {
+              line.classList.add('active');
+              line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+              line.classList.remove('active');
+            }
+          });
+        }, 200);
+      }
+
+      function stopLyricsSync() {
+        if (lyricsUpdateInterval) {
+          clearInterval(lyricsUpdateInterval);
+          lyricsUpdateInterval = null;
+        }
+      }
+
+      function closeLyrics() {
+        document.getElementById('lyricsFloating').style.display = 'none';
+        stopLyricsSync();
+        currentLyricsData = null;
+      }
+
+      function initLyricsDrag() {
+        const lyricsFloating = document.getElementById('lyricsFloating');
+        const header = document.querySelector('.lyrics-header');
+        const closeBtn = document.getElementById('lyricsCloseBtn');
+        if (!lyricsFloating || !header || !closeBtn) return;
+
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        header.addEventListener('mousedown', function (e) {
+          if (e.target === closeBtn) return;
+          isDragging = true;
+          lyricsFloating.classList.add('dragging');
+          const rect = lyricsFloating.getBoundingClientRect();
+          offsetX = e.clientX - rect.left;
+          offsetY = e.clientY - rect.top;
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', function (e) {
+          if (!isDragging) return;
+          lyricsFloating.style.left = (e.clientX - offsetX) + 'px';
+          lyricsFloating.style.top = (e.clientY - offsetY) + 'px';
+          lyricsFloating.style.right = 'auto';
+          lyricsFloating.style.bottom = 'auto';
+        });
+
+        document.addEventListener('mouseup', function () {
+          isDragging = false;
+          lyricsFloating.classList.remove('dragging');
+        });
+
+        closeBtn.addEventListener('click', closeLyrics);
+      }
+
+      function initLyricsButton() {
+        const lyricsButton = document.getElementById('lyricsButton');
+        if (lyricsButton) {
+          lyricsButton.addEventListener('click', showLyrics);
+        }
+      }
+      // ========== 歌词功能结束 ==========
+
+      // 初始化 AI 歌词解析按钮
+      function initAiInsightButton() {
+        const aiButton = document.getElementById("aiInsightButton");
+        const reanalyzeButton = document.getElementById("reanalyzeInsightButton");
+
+        if (aiButton) {
+          aiButton.addEventListener("click", function () {
+            showAiInsight(false); // 首次点击不强制重新分析
+          });
+        }
+
+        if (reanalyzeButton) {
+          reanalyzeButton.addEventListener("click", function () {
+            showAiInsight(true); // 点击重新分析按钮强制重新分析
+          });
+        }
       }
 
       // 初始化统计卡片
@@ -3533,6 +5214,11 @@
 
         // 初始化正在播放悬浮窗的拖动功能
         initNowPlayingDrag();
+        // 初始化 AI 歌词解析按钮
+        initAiInsightButton();
+        // 初始化歌词按钮和拖动功能
+        initLyricsButton();
+        initLyricsDrag();
 
         // 未上报标签页点击事件
         document
@@ -3615,101 +5301,366 @@
       }
 
       // 获取并显示曲目详细信息
-      function showTrackDetails(artist, album, trackName) {
-        // 显示加载状态
-        const modalContent = document.querySelector("#trackDetailsModal .modal-content");
-        modalContent.innerHTML = `<div class="loading">加载中...</div>`;
+      async function showTrackDetails(artist, album, trackName) {
+        // 1. 彻底清空旧数据，防止数据污染
+        window.currentDetailData = {
+          track: null,
+          insight: null,
+          loadingTrack: true,
+          loadingInsight: true
+        };
+        
+        const modal = document.getElementById("trackDetailsModal");
+        const modalContent = modal.querySelector(".modal-content");
+        
+        // 2. 初始化骨架结构
+        modalContent.innerHTML = `
+          <div class="module-trail"></div>
+          <div class="modal-header">
+            <h2 id="detailTrackTitle">${trackName}</h2>
+            <span class="close" onclick="hideModal('trackDetailsModal')">×</span>
+          </div>
+          <div class="modal-tabs">
+            <div class="modal-tab active" onclick="switchDetailTab('basic')"><span>📊</span> 基础信息</div>
+            <div class="modal-tab" onclick="switchDetailTab('lyrics')"><span>📜</span> 歌曲歌词</div>
+            <div class="modal-tab" onclick="switchDetailTab('ai')"><span>🤖</span> 音眸</div>
+          </div>
+          <div class="modal-body" id="detailModalBody">
+            <div class="loading">正在加载曲目基础信息...</div>
+          </div>
+        `;
+        
         showModal("trackDetailsModal");
 
-        // 从后端获取详细信息
+        // 3. 异步获取基础详情 (不阻塞)
         fetch(`/api/track?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&trackName=${encodeURIComponent(trackName)}`)
-          .then(response => {
-            if (!response.ok) {
-              throw new Error("网络响应错误");
-            }
-            return response.json();
-          })
+          .then(r => r.ok ? r.json() : null)
           .then(data => {
-            // 渲染详细信息
-            renderTrackDetails(data);
+            window.currentDetailData.track = data;
+            window.currentDetailData.loadingTrack = false;
+            // 只有当用户还在基础信息 Tab 时才自动渲染
+            const activeTab = document.querySelector("#trackDetailsModal .modal-tab.active");
+            if (activeTab && activeTab.innerText.includes("基础信息")) {
+              renderTrackDetailsContent('basic');
+            }
           })
-          .catch(error => {
-            console.error("获取曲目详情失败:", error);
-            modalContent.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+          .catch(e => {
+            console.error("加载基础信息失败:", e);
+            window.currentDetailData.loadingTrack = false;
+          });
+
+        // 4. 异步获取已有的 AI Insight (仅查询 GET)
+        const insightUrl = `/api/track-insight?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&track=${encodeURIComponent(trackName)}`;
+        fetch(insightUrl)
+          .then(r => r.ok ? r.json() : null)
+
+          .then(data => {
+            // 兼容多种返回格式
+            let insights = [];
+            if (data) {
+                if (data.insights) insights = data.insights;
+                else if (data.insight) insights = [data.insight];
+                else if (Array.isArray(data)) insights = data;
+            }
+            window.currentDetailData.insights = insights;
+            window.currentDetailData.loadingInsight = false;
+            // 如果用户这时已经切换到了 AI Tab，则在加载完后刷新渲染
+            const activeTab = document.querySelector("#trackDetailsModal .modal-tab.active");
+            if (activeTab && activeTab.innerText.includes("AI 分析")) {
+              renderTrackDetailsContent('ai');
+            }
+          })
+          .catch(e => {
+            console.error("查询 AI 历史记录失败:", e);
+            window.currentDetailData.loadingInsight = false;
           });
       }
 
-      // 渲染曲目详细信息
-      function renderTrackDetails(track) {
-        const modalContent = document.querySelector("#trackDetailsModal .modal-content");
+      // Tab 切换逻辑
+      function switchDetailTab(tabName) {
+        const tabs = document.querySelectorAll("#trackDetailsModal .modal-tab");
+        tabs.forEach(t => t.classList.remove("active"));
         
-        // 格式化播放时间
-        const formatDuration = (seconds) => {
-          const mins = Math.floor(seconds / 60);
-          const secs = Math.floor(seconds % 60);
-          return `${mins}:${secs.toString().padStart(2, "0")}`;
-        };
+        if (tabName === 'basic') tabs[0].classList.add("active");
+        else if (tabName === 'lyrics') tabs[1].classList.add("active");
+        else tabs[2].classList.add("active");
 
-        // 根据来源设置样式
-        let sourceClass = "";
-        let sourceText = "";
-        switch (track.source?.toLowerCase()) {
-          case "apple music":
-            sourceClass = "source-applemusic";
-            sourceText = "AppleMusic";
-            break;
-          case "audirvana":
-          case "au":
-            sourceClass = "source-audirvana";
-            sourceText = "Audirvana";
-            break;
-          case "roon":
-            sourceClass = "source-roon";
-            sourceText = "Roon";
-            break;
-          default:
-            sourceClass = "";
-            sourceText = track.source || "Unknown";
-        }
+        renderTrackDetailsContent(tabName);
+      }
 
-        // 根据喜欢状态设置显示文本
-        const appleMusicFavText = track.is_apple_music_fav ? "是" : "否";
-        const lastFmFavText = track.is_last_fm_fav ? "是" : "否";
+      // 渲染曲目详情具体内容
+      function renderTrackDetailsContent(tabName) {
+        const bodyContent = document.getElementById("detailModalBody");
+        const data = window.currentDetailData;
 
-        modalContent.innerHTML = `
-          <div class="modal-header">
-            <h2>${track.track}</h2>
-            <span class="close" onclick="hideModal('trackDetailsModal')">×</span>
-          </div>
-          <div class="modal-body">
+        if (tabName === 'basic') {
+          if (data.loadingTrack) {
+            bodyContent.innerHTML = '<div class="loading">正在加载基础信息...</div>';
+            return;
+          }
+          if (!data.track) {
+            bodyContent.innerHTML = '<div class="error">未找到曲目基础信息</div>';
+            return;
+          }
+          const track = data.track;
+          const formatDuration = (seconds) => {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, "0")}`;
+          };
+
+          let sourceClass = "";
+          let sourceText = "";
+          switch (track.source?.toLowerCase()) {
+            case "apple music": sourceClass = "source-applemusic"; sourceText = "AppleMusic"; break;
+            case "audirvana": case "au": sourceClass = "source-audirvana"; sourceText = "Audirvana"; break;
+            case "roon": sourceClass = "source-roon"; sourceText = "Roon"; break;
+            default: sourceClass = ""; sourceText = track.source || "Unknown";
+          }
+
+          bodyContent.innerHTML = `
             <div class="track-info">
               <p><strong>艺术家:</strong> ${track.artist}</p>
               <p><strong>专辑:</strong> ${track.album}</p>
-              <p><strong>播放次数:</strong> ${track.play_count}</p>
+              <p><strong>播放次数:</strong> ${track.play_count || 0}</p>
               ${track.duration ? `<p><strong>时长:</strong> ${formatDuration(track.duration)}</p>` : ''}
               ${track.track_number ? `<p><strong>曲目编号:</strong> ${track.track_number}</p>` : ''}
               ${track.genre ? `<p><strong>流派:</strong> ${track.genre}</p>` : ''}
-              ${track.composer ? `<p><strong>作曲家:</strong> ${track.composer}</p>` : ''}
-              ${track.release_date ? `<p><strong>发行日期:</strong> ${track.release_date}</p>` : ''}
-              ${track.music_brainz_id ? `<p><strong>MusicBrainz ID:</strong> ${track.music_brainz_id}</p>` : ''}
-              <p><strong>喜欢苹果音乐:</strong> ${appleMusicFavText}</p>
-              <p><strong>喜欢Last.fm:</strong> ${lastFmFavText}</p>
+              <p><strong>喜欢苹果音乐:</strong> ${track.is_apple_music_fav ? "是" : "否"}</p>
+              <p><strong>喜欢Last.fm:</strong> ${track.is_last_fm_fav ? "是" : "否"}</p>
               <p><strong>数据来源:</strong> <span class="play-source ${sourceClass}">${sourceText}</span></p>
-              ${track.bundle_id ? `<p><strong>应用标识符:</strong> ${track.bundle_id}</p>` : ''}
-              ${track.unique_id ? `<p><strong>唯一标识符:</strong> ${track.unique_id}</p>` : ''}
-              <p><strong>创建时间:</strong> ${new Date(track.created_at).toLocaleString('zh-CN')}</p>
               <p><strong>更新时间:</strong> ${new Date(track.updated_at).toLocaleString('zh-CN')}</p>
             </div>
-          </div>
-        `;
+          `;
+        } else if (tabName === 'lyrics') {
+          // 歌词 Tab
+          const track = data.track;
+          if (!track) {
+            bodyContent.innerHTML = '<div class="loading">正在加载数据...</div>';
+            return;
+          }
+          
+          bodyContent.innerHTML = '<div class="loading">正在查询歌词...</div>';
+          
+          fetch(`/api/track-lyrics?artist=${encodeURIComponent(track.artist)}&album=${encodeURIComponent(track.album || '')}&track=${encodeURIComponent(track.track)}`)
+            .then(r => r.json())
+            .then(lyricsData => {
+              if (lyricsData.lyrics) {
+                bodyContent.innerHTML = `
+                  <div class="lyrics-container" style="max-height: 500px; overflow-y: auto; padding: 20px; font-family: sans-serif; line-height: 1.8; text-align: center;">
+                    <div class="lyrics-text" style="white-space: pre-wrap;">${lyricsData.lyrics}</div>
+                  </div>
+                `;
+              } else {
+                bodyContent.innerHTML = `
+                  <div style="text-align: center; padding: 40px 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🎶</div>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">本地暂无该曲目的歌词数据</p>
+                    <button class="action-btn" onclick="triggerLyricsSearch()" style="background: var(--primary-color); color: white; padding: 10px 25px; border-radius: 20px; font-weight: 600;">🔍 立即在线查询</button>
+                    <div id="lyricSearchStatus" style="margin-top: 15px; font-size: 0.9rem; color: var(--primary-color);"></div>
+                  </div>
+                `;
+              }
+            })
+            .catch(err => {
+              bodyContent.innerHTML = `<div class="error">查询失败: ${err.message}</div>`;
+            });
+
+        } else {
+          // AI Tab
+          if (data.loadingInsight) {
+            bodyContent.innerHTML = '<div class="loading">正在查询 AI 解析历史...</div>';
+            return;
+          }
+          
+          const insights = data.insights || [];
+          
+          if (insights.length === 0) {
+            bodyContent.innerHTML = `
+              <div style="text-align: center; padding: 40px 20px;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🔍</div>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">暂无该曲目的 AI 深度分析</p>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                   <button class="action-btn" onclick="hideModal('trackDetailsModal'); showModelPicker({artist: window.currentDetailData.track.artist, album: window.currentDetailData.track.album, title: window.currentDetailData.track.track});" style="background: var(--primary-color); color: white; padding: 10px 25px; border-radius: 20px; font-weight: 600;">✨ 开始分析</button>
+                </div>
+              </div>
+            `;
+            return;
+          }
+          
+          let html = '';
+          
+          // 如果有多个结果，显示 Tab
+          if (insights.length > 1) {
+             const positiveTotal = insights.reduce((sum, i) => sum + Math.max(0, i.total_score || 0), 0);
+             html += '<div class="insight-tabs">';
+             insights.forEach((insight, index) => {
+                 const date = new Date(insight.created_at || Date.now());
+                 const timeStr = date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                 const activeClass = index === 0 ? 'active' : '';
+                 const totalScore = insight.total_score || 0;
+                 let supportRate;
+                 if (positiveTotal > 0) {
+                     supportRate = ((totalScore / positiveTotal) * 100).toFixed(1);
+                 } else {
+                     supportRate = totalScore === 0 ? '0.0' : (totalScore > 0 ? '100.0' : '-100.0');
+                 }
+                 html += `<div class="insight-tab ${activeClass}" onclick="switchDetailInsightTab(${index})" title="总分: ${totalScore} | 支持率: ${supportRate}%">分析 ${insights.length - index} <small>(${timeStr})</small></div>`;
+             });
+             html += '</div>';
+          }
+          
+          html += '<div id="detail-insight-content-container">';
+          insights.forEach((insight, index) => {
+              const displayStyle = index === 0 ? 'block' : 'none';
+              html += `<div class="insight-item" id="detail-insight-item-${index}" style="display: ${displayStyle};">`;
+              html += generateInsightContentHtml(insight);
+              // 添加一致的操作按钮行
+              html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color); gap: 15px;">
+                  <button class="action-btn" style="flex: 1; padding: 8px 15px; border-radius: 20px; font-weight: 600;" onclick="hideModal('trackDetailsModal'); showModelPicker({artist: window.currentDetailData.track.artist, album: window.currentDetailData.track.album, title: window.currentDetailData.track.track});">🔄 重新分析</button>
+                  <button class="action-btn" style="flex: 1; padding: 8px 15px; border-radius: 20px; font-weight: 600; background: rgba(52, 152, 219, 0.1); color: var(--primary-color); border-color: var(--primary-color);" onclick="shareDetailInsight(${index})">分享图片</button>
+                  <div style="display: flex; gap: 10px; flex: 1; justify-content: flex-end;">
+                    <button class="action-btn" style="padding: 6px 12px; border-radius: 15px; background: rgba(46, 204, 113, 0.1); color: var(--secondary-color); border-color: var(--secondary-color);" onclick="recordAiFeedback(1)">👍 赞</button>
+                    <button class="action-btn" style="padding: 6px 12px; border-radius: 15px; background: rgba(231, 76, 60, 0.1); color: var(--accent-color); border-color: var(--accent-color);" onclick="recordAiFeedback(-1)">👎 踩</button>
+                  </div>
+                </div>
+              `;
+              html += '</div>';
+          });
+          html += '</div>';
+
+          bodyContent.innerHTML = html;
+          // 保存 insights 到全局变量，以便切换 tab 和点赞点踩使用
+          window.currentDetailData.insights = insights;
+          // 更新选中的 ID，以便全局 feedback 可用
+          currentTrackInsight = insights[0];
+        }
       }
+      
+      async function triggerLyricsSearch() {
+          const track = window.currentDetailData.track;
+          if (!track) return;
+          
+          const statusEl = document.getElementById("lyricSearchStatus");
+          statusEl.textContent = "正在通过网络搜索歌词，请稍候...";
+          
+          try {
+              // 假设后端接口支持 force 参数来触发刷新，或者通过这个接口本身就能完成搜索并保存
+              // 这里调用的是相同的接口，但由于之前查询结果为空，点击此按钮通常由于用户想手动触发搜索
+              const resp = await fetch(`/api/track-lyrics?artist=${encodeURIComponent(track.artist)}&album=${encodeURIComponent(track.album || '')}&track=${encodeURIComponent(track.track)}&force=true`);
+              const data = await resp.json();
+              
+              if (data.lyrics) {
+                  statusEl.textContent = "找到歌词！正在刷新...";
+                  setTimeout(() => switchDetailTab('lyrics'), 1000);
+              } else {
+                  statusEl.textContent = "抱歉，依然未找到歌词。";
+              }
+          } catch (e) {
+              statusEl.textContent = "查询出错: " + e.message;
+          }
+      }
+
+      function switchDetailInsightTab(index) {
+          console.log("switchDetailInsightTab:", index);
+          const container = document.getElementById("detailModalBody");
+          container.querySelectorAll('.insight-tab').forEach((tab, i) => {
+              if (i === index) tab.classList.add('active');
+              else tab.classList.remove('active');
+          });
+          container.querySelectorAll('.insight-item').forEach((item, i) => {
+              if (i === index) item.style.display = 'block';
+              else item.style.display = 'none';
+          });
+          // 更新当前选中的 insight，以便点赞点踩使用正确的 ID
+          if (window.currentDetailData && window.currentDetailData.insights && window.currentDetailData.insights[index]) {
+              currentTrackInsight = window.currentDetailData.insights[index];
+              console.log("Detail currentTrackInsight updated to index", index, ":", currentTrackInsight);
+          }
+      }
+
     </script>
     
     <!-- 曲目详情模态框 -->
     <div id="trackDetailsModal" class="modal">
-      <div class="modal-content">
-        <!-- 内容将通过JavaScript动态填充 -->
+      <div class="modal-content" style="max-width: 800px;">
+        <div class="module-trail"></div>
+        <!-- 内容由 JavaScript 动态生成，包含 Tab 结构 -->
       </div>
     </div>
+
+    <!-- AI 歌词解析模态框 -->
+    <div id="aiInsightModal" class="modal">
+      <div class="modal-content" style="max-width: 800px;">
+        <div class="module-trail"></div>
+        <div class="modal-header">
+          <h2>音眸</h2>
+          <span class="close" onclick="hideModal('aiInsightModal')">×</span>
+        </div>
+        <div class="modal-body">
+          <div id="aiInsightStreamContent" style="white-space: pre-wrap; font-family: 'Segoe UI', system-ui, sans-serif; max-height: 65vh; overflow-y: auto; padding: 20px; background: var(--background-color); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+            <div class="loading">准备中...</div>
+          </div>
+          <!-- 底部操作区：重新分析按钮与点赞按钮在同一行 -->
+          <div id="aiActionFooter" style="margin-top: 15px; padding: 10px 0; border-top: 1px solid var(--border-color); display: none; justify-content: space-between; align-items: center; gap: 20px;">
+            <button id="aiReanalyzeBtn" class="action-btn" style="flex: 1; padding: 8px 15px; border-radius: 20px; font-weight: 600;" onclick="showModelPicker()">重新分析</button>
+            <button id="aiShareBtn" class="action-btn" style="flex: 1; padding: 8px 15px; border-radius: 20px; font-weight: 600; background: rgba(52, 152, 219, 0.1); color: var(--primary-color); border-color: var(--primary-color);" onclick="shareInsight()">分享图片</button>
+            <div id="aiFeedbackBtns" style="display: flex; gap: 10px; flex: 1; justify-content: flex-end;">
+              <button class="action-btn" style="padding: 6px 12px; border-radius: 15px; background: rgba(46, 204, 113, 0.1); color: var(--secondary-color); border-color: var(--secondary-color);" onclick="recordAiFeedback(1)">👍 赞</button>
+              <button class="action-btn" style="padding: 6px 12px; border-radius: 15px; background: rgba(231, 76, 60, 0.1); color: var(--accent-color); border-color: var(--accent-color);" onclick="recordAiFeedback(-1)">👎 踩</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI 模型选择模态框 -->
+    <div id="aiModelPickerModal" class="modal" style="z-index: 2100;">
+      <div class="modal-content" style="max-width: 400px; padding: 25px;">
+        <div class="module-trail"></div>
+        <div class="modal-header" style="margin-bottom: 20px;">
+          <h3>选择 AI 分析模型</h3>
+          <span class="close" onclick="hideModal('aiModelPickerModal')">×</span>
+        </div>
+        <div class="ai-model-selector" style="margin-bottom: 20px;">
+          <label for="aiModelSelect">当前可用模型:</label>
+          <select id="aiModelSelect" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-primary); margin-bottom: 15px;">
+            <option value="ollama">Ollama (本地)</option>
+          </select>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="aiModelSseToggle" checked style="width: auto;">
+            <label for="aiModelSseToggle" style="font-weight: normal; cursor: pointer;">流式输出结果</label>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <button class="action-btn" style="flex: 1; padding: 10px; background: var(--primary-color); color: white; border-radius: 6px;" onclick="startAnalysisWithSelectedModel()">开始分析</button>
+          <button class="action-btn" style="flex: 1; padding: 10px; background: var(--text-secondary); color: white; border-radius: 6px;" onclick="hideModal('aiModelPickerModal')">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分享图片容器 (隐藏，用于生成图片) -->
+    <div id="shareInsightContainer" style="position: absolute; left: -9999px; top: -9999px; width: 393px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; overflow: hidden;">
+      <div style="padding: 24px 20px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; margin-bottom: 10px;">AI Lyrics Insight</div>
+          <h1 id="shareTrackTitle" style="font-size: 20px; font-weight: 700; margin: 0 0 8px 0; line-height: 1.3;"></h1>
+          <p id="shareTrackMeta" style="font-size: 13px; opacity: 0.9; margin: 0;"></p>
+        </div>
+        <div id="shareInsightContent" style="background: rgba(255,255,255,0.12); border-radius: 12px; padding: 16px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);"></div>
+        <div style="margin-top: 20px; text-align: center; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.2);">
+          <div style="font-size: 10px; opacity: 0.7;">
+            <span style="font-weight: 600;">音眸轨迹</span> ·
+            <span>@vincentchyu</span> · 
+            <span id="shareModelName">AI</span>
+          </div>
+          <div style="font-size: 9px; opacity: 0.5; margin-top: 6px;">blog-vincent.chyu.org</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Watermark Logo -->
+    <div class="watermark"></div>
   </body>
 </html>

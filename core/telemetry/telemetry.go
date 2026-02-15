@@ -36,26 +36,31 @@ func Init(telemetryConfig config.TelemetryConfig) error {
 	var initErr error
 	once.Do(
 		func() {
-			initErr = initTelemetry(telemetryConfig.Name)
+			initErr = initTelemetry(telemetryConfig)
 		},
 	)
 	return initErr
 }
 
 // initTelemetry initializes the OpenTelemetry components
-func initTelemetry(serviceName string) error {
+func initTelemetry(cfg config.TelemetryConfig) error {
+	if cfg.Disabled {
+		return nil
+	}
+
 	// Create a resource with service information
 	res, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
-			semconv.ServiceNameKey.String(serviceName),
+			semconv.ServiceNameKey.String(cfg.Name),
 		),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// Create a trace exporter
+	// Create a trace exporter (stdout only if not disabled and for debugging)
+	// Usually in production we'd use Jaeger/OTLP, but here we just manage the stdout noise
 	traceExporter, err := stdouttrace.New(
 		// stdouttrace.WithPrettyPrint(),
 		stdouttrace.WithoutTimestamps(),
